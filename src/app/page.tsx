@@ -20,6 +20,15 @@ import {
   getGenericWorkspace,
 } from '@/lib/sampleData';
 import { DEFAULT_GROQ_MODEL, resolveGroqModel } from '@/lib/groq';
+import { AuthModal } from '@/components/AuthModal';
+import {
+  getCurrentUser,
+  onAuthStateChange,
+  signOutUser,
+  syncWorkspaceCloud,
+  fetchWorkspaceCloud,
+} from '@/lib/supabase';
+import type { User } from '@supabase/supabase-js';
 
 export default function STUDSPage() {
   // Global App States
@@ -36,6 +45,11 @@ export default function STUDSPage() {
   // Groq Model State (Server-backed)
   const [groqModel, setGroqModel] = useState(DEFAULT_GROQ_MODEL);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Supabase Auth & Cloud Sync
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
 
   // Workspace Inputs & Config
   const [rawText, setRawText] = useState('');
@@ -107,8 +121,61 @@ export default function STUDSPage() {
           console.warn('Could not parse saved workspace', e);
         }
       }
+
+      // Supabase Auth session detection
+      getCurrentUser().then((user) => {
+        if (user) {
+          setCurrentUser(user);
+        }
+      });
     });
-  }, []);
+
+    const { data: authListener } = onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user ?? null);
+      if (session?.user) {
+        fetchWorkspaceCloud().then((res) => {
+          if (res.success && res.workspace) {
+            setWorkspace(res.workspace);
+            if (res.streak) setStreak(res.streak);
+            showToast('☁️ Cloud workspace loaded!');
+          }
+        });
+      }
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, [showToast]);
+
+  // Handle Sign Out
+  const handleSignOut = async () => {
+    await signOutUser();
+    setCurrentUser(null);
+    showToast('Signed out of Supabase.');
+  };
+
+  // Handle Cloud Sync
+  const handleSyncCloud = async () => {
+    if (!currentUser) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    setIsSyncingCloud(true);
+    try {
+      const res = await syncWorkspaceCloud(workspace, streak);
+      if (res.success) {
+        showToast('✅ Synced to Supabase Cloud!');
+      } else {
+        showToast(`Sync failed: ${res.error || 'Unknown error'}`);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      showToast(`Sync error: ${message}`);
+    } finally {
+      setIsSyncingCloud(false);
+    }
+  };
 
   // Handle Theme Toggle
   const handleToggleTheme = () => {
@@ -341,6 +408,11 @@ export default function STUDSPage() {
           onToggleFocus={handleToggleFocus}
           onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
           activeViewTitle={viewTitles[activeView]}
+          user={currentUser}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onSignOut={handleSignOut}
+          isSyncingCloud={isSyncingCloud}
+          onSyncCloud={handleSyncCloud}
         />
 
         {/* Focus Mode Exit Floating Button */}
@@ -508,6 +580,15 @@ export default function STUDSPage() {
           )}
         </div>
       </div>
+
+      {/* Supabase Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={() => {
+          showToast('⚡ Connected to Supabase Cloud!');
+        }}
+      />
 
       {/* Comic Toast Notification */}
       {toastMessage && (
