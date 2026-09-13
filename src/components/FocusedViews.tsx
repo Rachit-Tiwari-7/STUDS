@@ -6,43 +6,24 @@ import {
   WorkspaceData,
   PersonaType,
   DifficultyType,
-  GlossaryTerm,
-  Mnemonic,
-  ScheduleDay,
-  MindMapNode,
-  RevisionSection,
-  QuizQuestion,
-  Flashcard,
 } from '../lib/types';
 import {
   BookOpen,
-  Layers,
-  HelpCircle,
   Calendar,
   GitBranch,
-  BookMarked,
-  CheckSquare,
-  Camera,
   Printer,
   Volume2,
   Sliders,
   Eye,
   EyeOff,
-  Search,
   Sparkles,
   ArrowRight,
   ArrowLeft,
-  RotateCcw,
-  Check,
-  Award,
-  AlertTriangle,
   Upload,
-  Image as ImageIcon,
   Copy,
   Download,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { transcribeHandwrittenImage, DEFAULT_OPENROUTER_VISION_MODEL } from '../lib/openrouter';
 
 interface FocusedViewsProps {
   activeView: ActiveViewType;
@@ -59,9 +40,6 @@ interface FocusedViewsProps {
   onExportText: () => void;
   onPrint: () => void;
   onShowToast: (msg: string) => void;
-  openRouterKey: string;
-  openRouterVisionModel: string;
-  onOpenOpenRouterModal: () => void;
   onTextChange: (text: string) => void;
   onGenerate: () => void;
   isGenerating: boolean;
@@ -82,12 +60,7 @@ export const FocusedViews: React.FC<FocusedViewsProps> = ({
   onExportText,
   onPrint,
   onShowToast,
-  openRouterKey,
-  openRouterVisionModel,
-  onOpenOpenRouterModal,
   onTextChange,
-  onGenerate,
-  isGenerating,
 }) => {
   // Flashcards state
   const [currentCardIdx, setCurrentCardIdx] = useState(0);
@@ -105,9 +78,6 @@ export const FocusedViews: React.FC<FocusedViewsProps> = ({
   // Cloze state
   const [clozeInputs, setClozeInputs] = useState<Record<number, string>>({});
   const [clozeResults, setClozeResults] = useState<Record<number, boolean>>({});
-
-  // Mind map collapsed state
-  const [collapsedNodes, setCollapsedNodes] = useState<Record<string, boolean>>({});
 
   // OCR state
   const [ocrImage, setOcrImage] = useState<string | null>(null);
@@ -209,24 +179,25 @@ export const FocusedViews: React.FC<FocusedViewsProps> = ({
   // OCR execution
   const handleOcrTranscribe = async () => {
     if (!ocrImage) return;
-    if (!openRouterKey) {
-      onOpenOpenRouterModal();
-      return;
-    }
     setOcrLoading(true);
+    setOcrStatus('Transcribing handwritten notes via server AI vision...');
     try {
-      const { text, usedModel } = await transcribeHandwrittenImage(
-        openRouterKey,
-        ocrImage,
-        openRouterVisionModel,
-        (msg) => setOcrStatus(msg)
-      );
-      onTextChange(text);
-      const modelShort = usedModel.split('/')[1] || usedModel;
-      setOcrStatus(`✅ Transcribed via 100% Free Model: ${modelShort}!`);
+      const res = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: ocrImage }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to transcribe notes');
+      }
+      onTextChange(data.text);
+      const modelShort = (data.modelUsed || 'Vision AI').split('/')[1] || data.modelUsed;
+      setOcrStatus(`✅ Transcribed via Free Vision AI: ${modelShort}!`);
       onShowToast('Handwritten notes transcribed into text area!');
-    } catch (err: any) {
-      setOcrStatus(`❌ OCR Failed: ${err.message}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'OCR transcription failure';
+      setOcrStatus(`❌ OCR Failed: ${msg}`);
     } finally {
       setOcrLoading(false);
     }
@@ -837,6 +808,7 @@ export const FocusedViews: React.FC<FocusedViewsProps> = ({
           {ocrImage && (
             <div className="p-3 bg-[var(--card-bg-alt)] border-[var(--border-thin)] rounded-[var(--radius-sm)] flex flex-col items-center gap-3">
               <div className="h-44 max-w-sm overflow-hidden rounded border border-black/20">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={ocrImage} alt="Handwritten note" className="h-full w-full object-contain" />
               </div>
               <button

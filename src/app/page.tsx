@@ -3,12 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from '@/components/Header';
 import { InputWorkspace } from '@/components/InputWorkspace';
-import { ColumnLeft } from '@/components/ColumnLeft';
 import { ColumnCenter } from '@/components/ColumnCenter';
 import { ColumnRight } from '@/components/ColumnRight';
-import { GroqModal } from '@/components/GroqModal';
-import { SupabaseModal } from '@/components/SupabaseModal';
-import { OpenRouterModal } from '@/components/OpenRouterModal';
 import { Sidebar } from '@/components/Sidebar';
 import { FocusedViews } from '@/components/FocusedViews';
 import {
@@ -18,25 +14,11 @@ import {
   ActiveViewType,
 } from '@/lib/types';
 import {
-  SAMPLE_LECTURE_TEXTS,
   getCSWorkspace,
   getBioWorkspace,
   getGenericWorkspace,
 } from '@/lib/sampleData';
-import {
-  callGroqAPI,
-  parseGroqKeyPool,
-  DEFAULT_GROQ_KEYS,
-  DEFAULT_GROQ_MODEL,
-  resolveGroqModel,
-} from '@/lib/groq';
-import { syncWorkspaceCloud, getSupabaseClient } from '@/lib/supabase';
-import {
-  DEFAULT_OPENROUTER_KEY,
-  DEFAULT_OPENROUTER_VISION_MODEL,
-  DEFAULT_OPENROUTER_TEXT_MODEL,
-  generateWorkspaceWithOpenRouter,
-} from '@/lib/openrouter';
+import { DEFAULT_GROQ_MODEL, resolveGroqModel } from '@/lib/groq';
 
 export default function STUDSPage() {
   // Global App States
@@ -50,22 +32,9 @@ export default function STUDSPage() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Groq State (Multi-Key Pool)
-  const [groqKeys, setGroqKeys] = useState<string[]>(DEFAULT_GROQ_KEYS);
+  // Groq Model State (Server-backed)
   const [groqModel, setGroqModel] = useState(DEFAULT_GROQ_MODEL);
-  const [isGroqModalOpen, setIsGroqModalOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-
-  // OpenRouter State (Vision OCR & Text)
-  const [openRouterKey, setOpenRouterKey] = useState(DEFAULT_OPENROUTER_KEY);
-  const [openRouterVisionModel, setOpenRouterVisionModel] = useState(DEFAULT_OPENROUTER_VISION_MODEL);
-  const [openRouterTextModel, setOpenRouterTextModel] = useState(DEFAULT_OPENROUTER_TEXT_MODEL);
-  const [isOpenRouterModalOpen, setIsOpenRouterModalOpen] = useState(false);
-
-  // Supabase State
-  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [supabaseConfigured, setSupabaseConfigured] = useState(false);
 
   // Workspace Inputs & Config
   const [rawText, setRawText] = useState('');
@@ -87,103 +56,57 @@ export default function STUDSPage() {
 
   // Initialization & LocalStorage Restore
   useEffect(() => {
-    // Theme
-    const savedTheme = localStorage.getItem('studs_theme') || localStorage.getItem('studypulse_theme');
-    if (savedTheme === 'dark') {
-      setIsDark(true);
-      document.documentElement.classList.add('dark');
-    }
+    queueMicrotask(() => {
+      // Theme
+      const savedTheme = localStorage.getItem('studs_theme') || localStorage.getItem('studypulse_theme');
+      if (savedTheme === 'dark') {
+        setIsDark(true);
+        document.documentElement.classList.add('dark');
+      }
 
-    // Streak
-    const savedStreak = parseInt(localStorage.getItem('studs_streak') || localStorage.getItem('studypulse_streak') || '1', 10);
-    const lastDate = localStorage.getItem('studs_last_date') || localStorage.getItem('studypulse_last_date');
-    const today = new Date().toISOString().slice(0, 10);
+      // Streak
+      const savedStreak = parseInt(localStorage.getItem('studs_streak') || localStorage.getItem('studypulse_streak') || '1', 10);
+      const lastDate = localStorage.getItem('studs_last_date') || localStorage.getItem('studypulse_last_date');
+      const today = new Date().toISOString().slice(0, 10);
 
-    if (lastDate) {
-      const last = new Date(lastDate);
-      const curr = new Date(today);
-      const diff = Math.floor((curr.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
-      if (diff === 1) {
-        setStreak(savedStreak + 1);
-        localStorage.setItem('studs_streak', String(savedStreak + 1));
-      } else if (diff === 0) {
-        setStreak(savedStreak);
+      if (lastDate) {
+        const last = new Date(lastDate);
+        const curr = new Date(today);
+        const diff = Math.floor((curr.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
+        if (diff === 1) {
+          setStreak(savedStreak + 1);
+          localStorage.setItem('studs_streak', String(savedStreak + 1));
+        } else if (diff === 0) {
+          setStreak(savedStreak);
+        } else {
+          setStreak(1);
+          localStorage.setItem('studs_streak', '1');
+        }
       } else {
         setStreak(1);
         localStorage.setItem('studs_streak', '1');
       }
-    } else {
-      setStreak(1);
-      localStorage.setItem('studs_streak', '1');
-    }
-    localStorage.setItem('studs_last_date', today);
+      localStorage.setItem('studs_last_date', today);
 
-    // Groq settings (Multi-Key Pool)
-    const gKeysRaw =
-      localStorage.getItem('studs_groq_keys') ||
-      localStorage.getItem('studypulse_groq_keys') ||
-      localStorage.getItem('studypulse_groq_key') ||
-      '';
-    const parsedStoredKeys = parseGroqKeyPool(gKeysRaw);
-    const gKeys = parsedStoredKeys.length > 0 ? parsedStoredKeys : DEFAULT_GROQ_KEYS;
-    setGroqKeys(gKeys);
-    const rawModel =
-      localStorage.getItem('studs_groq_model') ||
-      localStorage.getItem('studypulse_groq_model') ||
-      DEFAULT_GROQ_MODEL;
-    const gModel = resolveGroqModel(rawModel);
-    setGroqModel(gModel);
+      // Groq model preference
+      const rawModel =
+        localStorage.getItem('studs_groq_model') ||
+        localStorage.getItem('studypulse_groq_model') ||
+        DEFAULT_GROQ_MODEL;
+      setGroqModel(resolveGroqModel(rawModel));
 
-    // OpenRouter settings
-    const orKey =
-      localStorage.getItem('studs_openrouter_key') ||
-      localStorage.getItem('studypulse_openrouter_key') ||
-      DEFAULT_OPENROUTER_KEY;
-    const orVision =
-      localStorage.getItem('studs_openrouter_vision_model') ||
-      localStorage.getItem('studypulse_openrouter_vision_model') ||
-      DEFAULT_OPENROUTER_VISION_MODEL;
-    const orText =
-      localStorage.getItem('studs_openrouter_text_model') ||
-      localStorage.getItem('studypulse_openrouter_text_model') ||
-      DEFAULT_OPENROUTER_TEXT_MODEL;
-    setOpenRouterKey(orKey);
-    setOpenRouterVisionModel(orVision);
-    setOpenRouterTextModel(orText);
-
-    // Supabase settings
-    const sUrl = localStorage.getItem('studs_supabase_url') || localStorage.getItem('studypulse_supabase_url');
-    const sKey = localStorage.getItem('studs_supabase_key') || localStorage.getItem('studypulse_supabase_key');
-    if (sUrl && sKey) {
-      setSupabaseConfigured(true);
-      const client = getSupabaseClient();
-      client?.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user?.email) {
-          setUserEmail(session.user.email);
+      // Workspace restore
+      const savedWorkspace = localStorage.getItem('studs_workspace') || localStorage.getItem('studypulse_workspace');
+      if (savedWorkspace) {
+        try {
+          const parsed = JSON.parse(savedWorkspace);
+          setWorkspace(parsed);
+        } catch (e) {
+          console.warn('Could not parse saved workspace', e);
         }
-      });
-    }
-
-    // Workspace restore
-    const savedWorkspace = localStorage.getItem('studs_workspace') || localStorage.getItem('studypulse_workspace');
-    if (savedWorkspace) {
-      try {
-        const parsed = JSON.parse(savedWorkspace);
-        setWorkspace(parsed);
-      } catch (e) {
-        console.warn('Could not parse saved workspace', e);
       }
-    } else {
-      setRawText(SAMPLE_LECTURE_TEXTS.cs.text);
-    }
+    });
   }, []);
-
-  // Save workspace to LocalStorage on change
-  useEffect(() => {
-    if (workspace) {
-      localStorage.setItem('studs_workspace', JSON.stringify(workspace));
-    }
-  }, [workspace]);
 
   // Handle Theme Toggle
   const handleToggleTheme = () => {
@@ -222,47 +145,7 @@ export default function STUDSPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isFocusMode, showToast]);
 
-  // Handle Groq configuration save/clear
-  const handleSaveGroqConfig = (keys: string[], model: string) => {
-    const sanitizedModel = resolveGroqModel(model);
-    setGroqKeys(keys);
-    setGroqModel(sanitizedModel);
-    localStorage.setItem('studs_groq_keys', JSON.stringify(keys));
-    localStorage.setItem('studs_groq_model', sanitizedModel);
-    setIsGroqModalOpen(false);
-    showToast(`Saved ${keys.length} Groq Key(s) in Rotation Pool!`);
-  };
-
-  const handleClearGroqConfig = () => {
-    setGroqKeys([]);
-    localStorage.removeItem('studs_groq_keys');
-    localStorage.removeItem('studypulse_groq_keys');
-    localStorage.removeItem('studypulse_groq_key');
-    setIsGroqModalOpen(false);
-    showToast('Groq Key Pool cleared. Switched to Demo Mode.');
-  };
-
-  // Handle OpenRouter configuration save/clear
-  const handleSaveOpenRouterConfig = (key: string, visionModel: string, textModel: string) => {
-    setOpenRouterKey(key);
-    setOpenRouterVisionModel(visionModel);
-    setOpenRouterTextModel(textModel);
-    localStorage.setItem('studs_openrouter_key', key);
-    localStorage.setItem('studs_openrouter_vision_model', visionModel);
-    localStorage.setItem('studs_openrouter_text_model', textModel);
-    setIsOpenRouterModalOpen(false);
-    showToast(`Saved OpenRouter! Using ${visionModel.split('/')[1] || 'Vision'}`);
-  };
-
-  const handleClearOpenRouterConfig = () => {
-    setOpenRouterKey('');
-    localStorage.removeItem('studs_openrouter_key');
-    localStorage.removeItem('studypulse_openrouter_key');
-    setIsOpenRouterModalOpen(false);
-    showToast('OpenRouter settings cleared.');
-  };
-
-  // Workspace Generation Orchestrator (Groq Pool, OpenRouter, or local fallback)
+  // Secure Workspace Generation Orchestrator (Server-Side Route)
   const handleGenerateWorkspace = async () => {
     const text = rawText.trim();
     if (!text) {
@@ -274,52 +157,32 @@ export default function STUDSPage() {
     const readMin = Math.max(2, Math.round(words / 200) + 3);
     const studyTimeStr = `⏱️ ~${readMin} mins study time (${words} words)`;
 
+    setIsGenerating(true);
     let nextWorkspace: WorkspaceData | null = null;
 
-    // 1. Try Groq LPU Key Pool if keys provided
-    if (groqKeys.length > 0) {
-      setIsGenerating(true);
-      try {
-        const { data, keyIndex } = await callGroqAPI(
-          text,
-          groqModel,
-          groqKeys,
-          (statusMsg) => showToast(statusMsg)
-        );
-        nextWorkspace = data;
-        showToast(`🚀 Generated via Groq Key [${keyIndex + 1}/${groqKeys.length}]!`);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn('Groq Pool failed:', msg);
-        showToast(`Groq warning: ${msg.slice(0, 50)}... Trying OpenRouter/local.`);
-        nextWorkspace = null;
-      } finally {
-        setIsGenerating(false);
-      }
-    }
+    try {
+      // Call secure server route /api/synthesize (keys handled entirely in server env vars)
+      const res = await fetch('/api/synthesize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lectureText: text,
+          model: groqModel,
+        }),
+      });
 
-    // 2. Try OpenRouter if key provided (or if Groq was empty/failed)
-    if (!nextWorkspace && openRouterKey.trim()) {
-      setIsGenerating(true);
-      try {
-        nextWorkspace = await generateWorkspaceWithOpenRouter(
-          openRouterKey,
-          text,
-          difficulty,
-          openRouterTextModel
-        );
-        showToast('🚀 OpenRouter AI Workspace Generated!');
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.warn('OpenRouter generation failed:', msg);
-        showToast(`OpenRouter warning: ${msg.slice(0, 50)}... Using local engine.`);
-        nextWorkspace = null;
-      } finally {
-        setIsGenerating(false);
+      const resJson = await res.json();
+      if (res.ok && resJson.success && resJson.data) {
+        nextWorkspace = resJson.data;
+        showToast('🚀 AI Workspace Generated securely via server API!');
+      } else {
+        throw new Error(resJson.error || 'Server synthesis failed');
       }
-    }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn('Backend synthesis error, activating local engine:', msg);
+      showToast('Server busy — activated local offline generator.');
 
-    if (!nextWorkspace) {
       const isBio = /cell|glycolysis|atp|respiration|mitochondri/i.test(text);
       const isCS = /process|thread|mutex|deadlock|semaphore|concurrency/i.test(text);
 
@@ -331,15 +194,15 @@ export default function STUDSPage() {
         const firstLine = text.split('\n')[0].replace(/[:#]/g, '').slice(0, 60);
         nextWorkspace = getGenericWorkspace(text, firstLine);
       }
+    } finally {
+      setIsGenerating(false);
     }
 
-    nextWorkspace.studyTimeStr = studyTimeStr;
-    setWorkspace(nextWorkspace);
-
-    // Sync to Supabase cloud if logged in
-    syncWorkspaceCloud(nextWorkspace, streak).then(({ success }) => {
-      if (success) showToast('Workspace synced to Supabase Cloud! ☁️');
-    });
+    if (nextWorkspace) {
+      nextWorkspace.studyTimeStr = studyTimeStr;
+      setWorkspace(nextWorkspace);
+      localStorage.setItem('studs_workspace', JSON.stringify(nextWorkspace));
+    }
 
     // Scroll to dashboard
     const el = document.getElementById('dashboard-grid');
@@ -432,15 +295,6 @@ export default function STUDSPage() {
     window.print();
   };
 
-  const handleSyncCloud = async () => {
-    const res = await syncWorkspaceCloud(workspace, streak);
-    if (res.success) {
-      showToast('Workspace synced to Supabase Cloud! ☁️');
-    } else {
-      showToast(`Cloud sync note: ${res.error || 'Check login status'}`);
-    }
-  };
-
   const viewTitles: Record<ActiveViewType, string> = {
     dashboard: 'All-in-One Dashboard',
     notes: 'Revision Notes & Spoilers',
@@ -467,15 +321,8 @@ export default function STUDSPage() {
           onCloseMobile={() => setIsMobileSidebarOpen(false)}
           workspace={workspace}
           streak={streak}
-          groqKeysCount={groqKeys.length}
-          openRouterKeyConfigured={Boolean(openRouterKey.trim())}
-          userEmail={userEmail}
-          supabaseConfigured={supabaseConfigured}
           isDark={isDark}
           onToggleTheme={handleToggleTheme}
-          onOpenGroqModal={() => setIsGroqModalOpen(true)}
-          onOpenOpenRouterModal={() => setIsOpenRouterModalOpen(true)}
-          onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         />
       )}
 
@@ -488,14 +335,6 @@ export default function STUDSPage() {
           onToggleTheme={handleToggleTheme}
           isFocusMode={isFocusMode}
           onToggleFocus={handleToggleFocus}
-          onOpenGroqModal={() => setIsGroqModalOpen(true)}
-          onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
-          groqKeysCount={groqKeys.length}
-          groqModel={groqModel}
-          supabaseConfigured={supabaseConfigured}
-          userEmail={userEmail}
-          openRouterKeyConfigured={Boolean(openRouterKey.trim())}
-          onOpenOpenRouterModal={() => setIsOpenRouterModalOpen(true)}
           onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
           activeViewTitle={viewTitles[activeView]}
         />
@@ -532,35 +371,20 @@ export default function STUDSPage() {
                   onGenerate={handleGenerateWorkspace}
                   isGenerating={isGenerating}
                   groqModel={groqModel}
-                  openRouterKey={openRouterKey}
-                  openRouterVisionModel={openRouterVisionModel}
-                  onOpenOpenRouterModal={() => setIsOpenRouterModalOpen(true)}
+                  workspaceTitle={workspace.title}
                 />
               )}
 
-              {/* 3-Column Dashboard Layout */}
+              {/* 2-Column Executive Study Studio Layout */}
               <main
                 id="dashboard-grid"
-                className={`max-w-[1520px] mx-auto my-7 px-2 sm:px-5 grid gap-6 items-start transition-all ${
+                className={`max-w-[1520px] mx-auto mb-10 px-3 sm:px-5 grid gap-6 items-start transition-all ${
                   isFocusMode
-                    ? 'grid-cols-1 max-w-[860px]'
-                    : 'grid-cols-1 lg:grid-cols-[310px_1fr] xl:grid-cols-[310px_minmax(0,1fr)_370px]'
+                    ? 'grid-cols-1 max-w-[880px]'
+                    : 'grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]'
                 }`}
               >
-                {/* Column 1 (Left): Persona, Glossary, Mnemonics, Schedule, Mind Map */}
-                {!isFocusMode && (
-                  <ColumnLeft
-                    currentPersona={currentPersona}
-                    onPersonaChange={handlePersonaChange}
-                    glossary={workspace.glossary}
-                    mnemonics={workspace.mnemonics}
-                    schedule={workspace.schedule}
-                    onToggleScheduleItem={handleToggleScheduleItem}
-                    mindmap={workspace.mindmap}
-                  />
-                )}
-
-                {/* Column 2 (Center): Takeaways, Controls, Notes, Cloze, Export */}
+                {/* Main Study Hub: Takeaways, Controls, Notes, Cloze, Mind Map, Export */}
                 <ColumnCenter
                   takeaways={workspace.takeaways}
                   sections={workspace.sections}
@@ -574,15 +398,22 @@ export default function STUDSPage() {
                   onExportText={handleExportText}
                   onPrint={handlePrint}
                   onShowToast={showToast}
+                  currentPersona={currentPersona}
+                  onPersonaChange={handlePersonaChange}
+                  mindmap={workspace.mindmap}
                 />
 
-                {/* Column 3 (Right): Quiz, Weakness Analysis, 3D Flashcards */}
+                {/* Interactive Companion Rail: Flashcards, Quiz, Glossary & Mnemonics, 3-Day Plan */}
                 {!isFocusMode && (
                   <ColumnRight
                     quiz={workspace.quiz}
                     flashcards={workspace.flashcards}
                     difficulty={difficulty}
                     onShowToast={showToast}
+                    glossary={workspace.glossary}
+                    mnemonics={workspace.mnemonics}
+                    schedule={workspace.schedule}
+                    onToggleScheduleItem={handleToggleScheduleItem}
                   />
                 )}
               </main>
@@ -603,9 +434,6 @@ export default function STUDSPage() {
               onExportText={handleExportText}
               onPrint={handlePrint}
               onShowToast={showToast}
-              openRouterKey={openRouterKey}
-              openRouterVisionModel={openRouterVisionModel}
-              onOpenOpenRouterModal={() => setIsOpenRouterModalOpen(true)}
               onTextChange={setRawText}
               onGenerate={handleGenerateWorkspace}
               isGenerating={isGenerating}
@@ -613,35 +441,6 @@ export default function STUDSPage() {
           )}
         </div>
       </div>
-
-      {/* Modals */}
-      <GroqModal
-        isOpen={isGroqModalOpen}
-        onClose={() => setIsGroqModalOpen(false)}
-        currentKeys={groqKeys}
-        currentModel={groqModel}
-        onSave={handleSaveGroqConfig}
-        onClear={handleClearGroqConfig}
-      />
-
-      <SupabaseModal
-        isOpen={isSupabaseModalOpen}
-        onClose={() => setIsSupabaseModalOpen(false)}
-        userEmail={userEmail}
-        onAuthChange={setUserEmail}
-        onSyncCloud={handleSyncCloud}
-        onShowToast={showToast}
-      />
-
-      <OpenRouterModal
-        isOpen={isOpenRouterModalOpen}
-        onClose={() => setIsOpenRouterModalOpen(false)}
-        currentKey={openRouterKey}
-        currentVisionModel={openRouterVisionModel}
-        currentTextModel={openRouterTextModel}
-        onSave={handleSaveOpenRouterConfig}
-        onClear={handleClearOpenRouterConfig}
-      />
 
       {/* Comic Toast Notification */}
       {toastMessage && (

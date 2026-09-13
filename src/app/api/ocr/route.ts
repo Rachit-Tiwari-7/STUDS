@@ -54,8 +54,8 @@ export async function POST(req: Request): Promise<NextResponse<OCRResponseBody>>
       },
       { status: 200 }
     );
-  } catch (error: any) {
-    const errorMsg = error?.message || 'Multimodal OCR transcription failure.';
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : 'Multimodal OCR transcription failure.';
     return NextResponse.json(
       {
         success: false,

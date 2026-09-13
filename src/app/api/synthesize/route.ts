@@ -67,8 +67,8 @@ export async function POST(req: Request): Promise<NextResponse<SynthesizeRespons
       },
       { status: 200 }
     );
-  } catch (error: any) {
-    const errorMsg = error?.message || 'Internal synthesis failure occurred.';
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : 'Internal synthesis failure occurred.';
     return NextResponse.json(
       {
         success: false,

@@ -15,9 +15,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Flame,
-  Cpu,
-  Globe,
-  Cloud,
   Moon,
   Sun,
   X,
@@ -33,15 +30,8 @@ interface SidebarProps {
   onCloseMobile: () => void;
   workspace: WorkspaceData;
   streak: number;
-  groqKeysCount: number;
-  openRouterKeyConfigured: boolean;
-  userEmail: string | null;
-  supabaseConfigured: boolean;
   isDark: boolean;
   onToggleTheme: () => void;
-  onOpenGroqModal: () => void;
-  onOpenOpenRouterModal: () => void;
-  onOpenSupabaseModal: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -53,15 +43,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
   workspace,
   streak,
-  groqKeysCount,
-  openRouterKeyConfigured,
-  userEmail,
-  supabaseConfigured,
   isDark,
   onToggleTheme,
-  onOpenGroqModal,
-  onOpenOpenRouterModal,
-  onOpenSupabaseModal,
 }) => {
   const scheduleDone = workspace.schedule?.filter((s) => s.done).length || 0;
 
@@ -220,7 +203,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
             {group.items.map((item) => {
-              const Icon = item.icon;
               const isActive = activeView === item.id;
               return (
                 <button
@@ -274,87 +256,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {!isCollapsed && <span>{streak} Day Study Streak 🔥</span>}
         </div>
 
-        {/* API Badges & Triggers */}
-        {!isCollapsed ? (
-          <div className="space-y-1.5 pt-1">
-            <button
-              onClick={onOpenGroqModal}
-              className="w-full flex items-center justify-between p-2 rounded-[var(--radius-sm)] border-[var(--border-thin)] bg-[var(--card-bg)] hover:bg-amber-50 text-xs font-extrabold cursor-pointer transition-colors"
-              title="Groq Multi-Key Pool Setup"
-            >
-              <span className="flex items-center gap-1.5">
-                <Cpu className="w-3.5 h-3.5 text-[var(--brand-blue)]" />
-                <span>Groq Pool</span>
-              </span>
-              <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-black border ${
-                  groqKeysCount > 1
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-400'
-                    : groqKeysCount === 1
-                    ? 'bg-blue-100 text-blue-800 border-blue-400'
-                    : 'bg-slate-100 text-slate-600 border-slate-300'
-                }`}
-              >
-                {groqKeysCount > 1
-                  ? `${groqKeysCount} Keys`
-                  : groqKeysCount === 1
-                  ? '1 Key'
-                  : 'Demo'}
-              </span>
-            </button>
-
-            <button
-              onClick={onOpenOpenRouterModal}
-              className="w-full flex items-center justify-between p-2 rounded-[var(--radius-sm)] border-[var(--border-thin)] bg-[var(--card-bg)] hover:bg-blue-50 text-xs font-extrabold cursor-pointer transition-colors"
-              title="OpenRouter 100% Free OCR Setup"
-            >
-              <span className="flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Free OCR</span>
-              </span>
-              <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-black border ${
-                  openRouterKeyConfigured
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-400'
-                    : 'bg-slate-100 text-slate-600 border-slate-300'
-                }`}
-              >
-                {openRouterKeyConfigured ? 'Active' : 'Setup'}
-              </span>
-            </button>
-
-            <button
-              onClick={onOpenSupabaseModal}
-              className="w-full flex items-center justify-between p-2 rounded-[var(--radius-sm)] border-[var(--border-thin)] bg-[var(--card-bg)] hover:bg-purple-50 text-xs font-extrabold cursor-pointer transition-colors"
-              title="Supabase Cloud Sync"
-            >
-              <span className="flex items-center gap-1.5">
-                <Cloud className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Cloud Sync</span>
-              </span>
-              <span className="text-[10px] font-bold text-[var(--text-muted)] truncate max-w-[80px]">
-                {userEmail ? userEmail.split('@')[0] : supabaseConfigured ? 'Sync' : 'Offline'}
-              </span>
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2 pt-1">
-            <button
-              onClick={onOpenGroqModal}
-              className="p-2 rounded border-[var(--border-thin)] bg-[var(--card-bg)] hover:bg-amber-100 cursor-pointer"
-              title={`Groq Pool (${groqKeysCount} keys)`}
-            >
-              <Cpu className="w-4 h-4 text-[var(--brand-blue)]" />
-            </button>
-            <button
-              onClick={onOpenOpenRouterModal}
-              className="p-2 rounded border-[var(--border-thin)] bg-[var(--card-bg)] hover:bg-emerald-100 cursor-pointer"
-              title="OpenRouter Free OCR"
-            >
-              <Globe className="w-4 h-4 text-emerald-600" />
-            </button>
-          </div>
-        )}
 
         {/* Theme Switcher in sidebar */}
         <button

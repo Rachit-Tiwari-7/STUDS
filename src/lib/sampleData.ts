@@ -314,22 +314,55 @@ export function getBioWorkspace(): WorkspaceData {
   };
 }
 
+const STOP_WORDS = new Set([
+  'about', 'above', 'after', 'again', 'against', 'almost', 'along', 'already', 'also', 'although',
+  'always', 'among', 'another', 'around', 'because', 'before', 'behind', 'between', 'beyond',
+  'during', 'either', 'enough', 'every', 'everyone', 'everything', 'everywhere', 'except',
+  'further', 'having', 'inside', 'itself', 'little', 'making', 'middle', 'neither', 'nothing',
+  'nowhere', 'number', 'people', 'rather', 'really', 'second', 'several', 'should', 'similar',
+  'simple', 'simply', 'somebody', 'someone', 'something', 'somewhere', 'system', 'thanks',
+  'theirs', 'themselves', 'therefore', 'these', 'things', 'thinking', 'though', 'through',
+  'together', 'toward', 'towards', 'under', 'unless', 'unlike', 'until', 'various', 'without',
+  'which', 'where', 'while', 'whose', 'would', 'could', 'their', 'there', 'other', 'another',
+  'first', 'great', 'might', 'shall', 'those', 'using', 'often', 'given', 'shows', 'shown',
+  'state', 'different', 'based', 'points', 'point', 'makes', 'called', 'includes'
+]);
+
 /**
  * Heuristic Offline Workspace Synthesizer.
  * Analyzes arbitrary text locally without requiring any external LLM or API tokens.
- * Extracts sentence boundaries, key frequency distributions, and generates all 25 study artifacts.
+ * Employs an O(N) frequency-map and stop-word filtering algorithm to extract the highest-yield
+ * conceptual keywords and generates all 25 study artifacts deterministically.
  *
  * @param {string} text - Raw student lecture notes or document text.
  * @param {string} [title] - Optional explicit title override.
  * @returns {WorkspaceData} Complete synthetically generated study workspace.
- * @complexity Time: O(N) where N is text length. Space: O(W) where W is vocabulary size.
+ * @complexity Time: O(N + V log V) where N is text length and V is unique vocabulary count. Space: O(V) for frequency histogram.
  */
 export function getGenericWorkspace(text: string, title?: string): WorkspaceData {
-  const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 20);
-  const words = text.split(/\s+/).filter(w => w.length > 4);
-  const topWord1 = words[0] || "Foundational Concept";
-  const topWord2 = words[Math.floor(words.length * 0.3)] || "Core Mechanism";
-  const topWord3 = words[Math.floor(words.length * 0.6)] || "Key Application";
+  const sentences = text
+    .split(/[.!?]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 20);
+
+  // O(N) single-pass frequency histogram with stop-word elimination
+  const freqMap = new Map<string, number>();
+  const tokens = text.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
+
+  for (const token of tokens) {
+    if (!STOP_WORDS.has(token)) {
+      freqMap.set(token, (freqMap.get(token) || 0) + 1);
+    }
+  }
+
+  // Extract top 3 highest-frequency keywords
+  const sortedKeywords = Array.from(freqMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([word]) => word.charAt(0).toUpperCase() + word.slice(1));
+
+  const topWord1 = sortedKeywords[0] || 'Foundational Concept';
+  const topWord2 = sortedKeywords[1] || 'Core Mechanism';
+  const topWord3 = sortedKeywords[2] || 'Key Application';
 
   return {
     title: title || "Lecture Workspace",

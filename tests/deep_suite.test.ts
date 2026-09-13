@@ -7,13 +7,11 @@ import {
   callGroqAPI,
   resolveGroqModel,
   DEFAULT_GROQ_MODEL,
-  DEFAULT_GROQ_KEYS,
   ACTIVE_GROQ_MODELS,
 } from '../src/lib/groq';
 
 import {
   OPENROUTER_VISION_MODELS,
-  OPENROUTER_TEXT_MODELS,
   DEFAULT_OPENROUTER_VISION_MODEL,
   transcribeHandwrittenImage,
 } from '../src/lib/openrouter';
@@ -25,7 +23,6 @@ import {
   SAMPLE_LECTURE_TEXTS,
 } from '../src/lib/sampleData';
 
-import { WorkspaceData } from '../src/lib/types';
 import { GET as healthHandler } from '../src/app/api/health/route';
 import { POST as synthesizeHandler } from '../src/app/api/synthesize/route';
 import { POST as ocrHandler } from '../src/app/api/ocr/route';
@@ -149,6 +146,13 @@ test('SUITE 2: Strict Data Consistency & Completeness Validator', async (t) => {
     assert.throws(() => validateAndSanitizeWorkspace({}, sampleLecture), /Incomplete takeaways/);
   });
 
+  await t.test('rejects primitive types and arrays with explicit invariant error', () => {
+    assert.throws(() => validateAndSanitizeWorkspace('string' as unknown, sampleLecture), /empty or not a valid JSON/);
+    assert.throws(() => validateAndSanitizeWorkspace(12345 as unknown, sampleLecture), /empty or not a valid JSON/);
+    assert.throws(() => validateAndSanitizeWorkspace([] as unknown, sampleLecture), /empty or not a valid JSON/);
+    assert.throws(() => validateAndSanitizeWorkspace(false as unknown, sampleLecture), /empty or not a valid JSON/);
+  });
+
   await t.test('rejects incomplete takeaways (less than 3 items)', () => {
     const badRaw = {
       takeaways: ['Only One Takeaway'],
@@ -260,8 +264,9 @@ test('SUITE 3: Groq Multi-Key Load Balancing & Failover', async (t) => {
       ],
     };
 
-    globalThis.fetch = async (url: any, init: any) => {
-      const authHeader = init?.headers?.Authorization || '';
+    globalThis.fetch = async (_url: RequestInfo | URL, init?: RequestInit) => {
+      const headers = (init?.headers as Record<string, string>) || {};
+      const authHeader = headers.Authorization || headers.authorization || '';
       if (authHeader.includes('gsk_key_1_rate_limited')) {
         return new Response(
           JSON.stringify({ error: { message: 'Rate limit reached: 30 requests per min (HTTP 429)' } }),
@@ -313,8 +318,9 @@ test('SUITE 3: Groq Multi-Key Load Balancing & Failover', async (t) => {
       flashcards: [{ front: 'F1', back: 'B1' }, { front: 'F2', back: 'B2' }, { front: 'F3', back: 'B3' }],
     };
 
-    globalThis.fetch = async (url: any, init: any) => {
-      const authHeader = init?.headers?.Authorization || '';
+    globalThis.fetch = async (_url: RequestInfo | URL, init?: RequestInit) => {
+      const headers = (init?.headers as Record<string, string>) || {};
+      const authHeader = headers.Authorization || headers.authorization || '';
       if (authHeader.includes('gsk_bad_json')) {
         // Returns truncated/broken JSON
         return new Response(
@@ -374,8 +380,8 @@ test('SUITE 4: OpenRouter 100% Free Vision OCR & Fallback Cascade', async (t) =>
     const originalFetch = globalThis.fetch;
     const statusLogs: string[] = [];
 
-    globalThis.fetch = async (url: any, init: any) => {
-      const body = JSON.parse(init.body);
+    globalThis.fetch = async (_url: RequestInfo | URL, init?: RequestInit) => {
+      const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as { model?: string }) : {};
       // Fail on Gemma 31B
       if (body.model === 'google/gemma-4-31b-it:free') {
         return new Response('Rate limit reached (429)', { status: 429 });
@@ -463,6 +469,22 @@ test('SUITE 5: Domain Workspaces Satisfy All 25 Features', async (t) => {
     assert.ok(generic.glossary.length >= 4);
     assert.equal(generic.quiz.length, 5);
     assert.ok(generic.flashcards.length >= 4);
+  });
+
+  await t.test('Deterministic O(N) frequency-map algorithm accurately filters stopwords and extracts core terms', () => {
+    const text = `
+      Quantum computing leverages quantum mechanical phenomena such as superposition and entanglement.
+      In a quantum computer, quantum bits or qubits store quantum states.
+      Superposition allows qubits to evaluate multiple probability states simultaneously.
+      Quantum algorithms, like Shor's algorithm, threaten traditional cryptography algorithms.
+    `;
+    const ws = getGenericWorkspace(text, 'Quantum Computing & Algorithms');
+    assert.equal(ws.title, 'Quantum Computing & Algorithms');
+    // "quantum" is the highest frequency non-stopword token (repeated 6 times)
+    assert.ok(ws.glossary.some((g) => g.term.toLowerCase() === 'quantum'));
+    assert.equal(ws.takeaways.length, 3);
+    assert.ok(ws.cloze.length >= 2);
+    assert.ok(ws.sections.length >= 3);
   });
 });
 

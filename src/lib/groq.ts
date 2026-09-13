@@ -1,4 +1,4 @@
-import { WorkspaceData } from './types';
+import { WorkspaceData, MindMapNode } from './types';
 
 export const ACTIVE_GROQ_MODELS = [
   {
@@ -29,16 +29,16 @@ export const ACTIVE_GROQ_MODELS = [
 ];
 
 export const DEFAULT_GROQ_MODEL =
-  (typeof process !== 'undefined' && (process.env.DEFAULT_GROQ_MODEL || process.env.NEXT_PUBLIC_DEFAULT_GROQ_MODEL)) ||
+  (typeof process !== 'undefined' && process.env.DEFAULT_GROQ_MODEL) ||
   'openai/gpt-oss-120b';
 
 /**
- * Loads default Groq rotation keys from environment variables (GROQ_API_KEYS / NEXT_PUBLIC_GROQ_API_KEYS)
+ * Loads default Groq rotation keys from environment variables (GROQ_API_KEYS / GROQ_API_KEY)
  */
 export function getEnvGroqKeys(): string[] {
   const envKeysRaw =
     (typeof process !== 'undefined' &&
-      (process.env.GROQ_API_KEYS || process.env.NEXT_PUBLIC_GROQ_API_KEYS || process.env.GROQ_API_KEY)) ||
+      (process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY)) ||
     '';
   return parseGroqKeyPool(envKeysRaw);
 }
@@ -110,20 +110,22 @@ export function parseGroqKeyPool(input: string | string[]): string[] {
  * @throws {Error} If required schema invariants are violated.
  * @complexity Time: O(S + Q + F) where S=sections, Q=quiz items, F=flashcards. Space: O(W) normalized workspace size.
  */
-export function validateAndSanitizeWorkspace(raw: any, lectureText: string): WorkspaceData {
-  if (!raw || typeof raw !== 'object') {
+export function validateAndSanitizeWorkspace(raw: unknown, lectureText: string): WorkspaceData {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error('LLM output was empty or not a valid JSON object');
   }
 
+  const record = raw as Record<string, unknown>;
+
   // 1. Validate title
   const title =
-    (raw.title && typeof raw.title === 'string' && raw.title.trim()) ||
+    (typeof record.title === 'string' && record.title.trim()) ||
     lectureText.split('\n')[0].replace(/[:#*]/g, '').slice(0, 60).trim() ||
     'Comprehensive Lecture Study Guide';
 
   // 2. Validate takeaways (strictly require 3 non-empty takeaways)
-  let takeaways: string[] = Array.isArray(raw.takeaways)
-    ? raw.takeaways.map((t: any) => String(t).trim()).filter(Boolean)
+  let takeaways: string[] = Array.isArray(record.takeaways)
+    ? record.takeaways.map((t) => String(t).trim()).filter(Boolean)
     : [];
   if (takeaways.length < 3) {
     throw new Error(`Incomplete takeaways returned (expected 3, got ${takeaways.length})`);
@@ -131,54 +133,65 @@ export function validateAndSanitizeWorkspace(raw: any, lectureText: string): Wor
   takeaways = takeaways.slice(0, 3);
 
   // 3. Validate glossary (strictly require at least 3 valid term/def pairs)
-  const glossary = Array.isArray(raw.glossary)
-    ? raw.glossary
+  const glossary = Array.isArray(record.glossary)
+    ? record.glossary
         .filter(
-          (g: any) =>
-            g &&
-            typeof g.term === 'string' &&
-            g.term.trim() &&
-            typeof g.def === 'string' &&
-            g.def.trim()
+          (g): g is { term: string; def: string } =>
+            typeof g === 'object' &&
+            g !== null &&
+            'term' in g &&
+            typeof (g as { term: unknown }).term === 'string' &&
+            (g as { term: string }).term.trim().length > 0 &&
+            'def' in g &&
+            typeof (g as { def: unknown }).def === 'string' &&
+            (g as { def: string }).def.trim().length > 0
         )
-        .map((g: any) => ({ term: g.term.trim(), def: g.def.trim() }))
+        .map((g) => ({ term: g.term.trim(), def: g.def.trim() }))
     : [];
   if (glossary.length < 3) {
     throw new Error(`Incomplete glossary returned (expected at least 3 terms, got ${glossary.length})`);
   }
 
   // 4. Validate mnemonics (strictly require at least 1 mnemonic)
-  const mnemonics = Array.isArray(raw.mnemonics)
-    ? raw.mnemonics
+  const mnemonics = Array.isArray(record.mnemonics)
+    ? record.mnemonics
         .filter(
-          (m: any) =>
-            m &&
-            typeof m.word === 'string' &&
-            m.word.trim() &&
-            typeof m.meaning === 'string' &&
-            m.meaning.trim()
+          (m): m is { word: string; meaning: string } =>
+            typeof m === 'object' &&
+            m !== null &&
+            'word' in m &&
+            typeof (m as { word: unknown }).word === 'string' &&
+            (m as { word: string }).word.trim().length > 0 &&
+            'meaning' in m &&
+            typeof (m as { meaning: unknown }).meaning === 'string' &&
+            (m as { meaning: string }).meaning.trim().length > 0
         )
-        .map((m: any) => ({ word: m.word.trim(), meaning: m.meaning.trim() }))
+        .map((m) => ({ word: m.word.trim(), meaning: m.meaning.trim() }))
     : [];
   if (mnemonics.length < 1) {
     throw new Error('No valid mnemonics returned by model');
   }
 
   // 5. Validate sections (strictly require at least 2 structured sections with bullets)
-  const sections = Array.isArray(raw.sections)
-    ? raw.sections
+  const sections = Array.isArray(record.sections)
+    ? record.sections
         .filter(
-          (s: any) =>
-            s &&
-            typeof s.title === 'string' &&
-            s.title.trim() &&
-            Array.isArray(s.bullets) &&
-            s.bullets.length > 0
+          (s): s is { title: string; bullets: unknown[]; complexity?: string } =>
+            typeof s === 'object' &&
+            s !== null &&
+            'title' in s &&
+            typeof (s as { title: unknown }).title === 'string' &&
+            (s as { title: string }).title.trim().length > 0 &&
+            'bullets' in s &&
+            Array.isArray((s as { bullets: unknown }).bullets) &&
+            (s as { bullets: unknown[] }).bullets.length > 0
         )
-        .map((s: any) => ({
+        .map((s) => ({
           title: s.title.trim(),
-          complexity: ['easy', 'medium', 'hard'].includes(s.complexity) ? s.complexity : 'medium',
-          bullets: s.bullets.map((b: any) => String(b).trim()).filter(Boolean),
+          complexity: (typeof s.complexity === 'string' && ['easy', 'medium', 'hard'].includes(s.complexity)
+            ? s.complexity
+            : 'medium') as 'easy' | 'medium' | 'hard',
+          bullets: s.bullets.map((b) => String(b).trim()).filter(Boolean),
         }))
     : [];
   if (sections.length < 2) {
@@ -199,27 +212,34 @@ export function validateAndSanitizeWorkspace(raw: any, lectureText: string): Wor
   }
 
   // 6. Validate quiz (strictly require 5 valid questions with 4 options and explanation)
-  let quiz = Array.isArray(raw.quiz)
-    ? raw.quiz
+  let quiz = Array.isArray(record.quiz)
+    ? record.quiz
         .filter(
-          (q: any) =>
-            q &&
-            typeof q.q === 'string' &&
-            q.q.trim() &&
-            Array.isArray(q.options) &&
-            q.options.length >= 2
+          (q): q is { q: string; options: unknown[]; correct?: number; explanation?: string } =>
+            typeof q === 'object' &&
+            q !== null &&
+            'q' in q &&
+            typeof (q as { q: unknown }).q === 'string' &&
+            (q as { q: string }).q.trim().length > 0 &&
+            'options' in q &&
+            Array.isArray((q as { options: unknown }).options) &&
+            (q as { options: unknown[] }).options.length >= 2
         )
-        .map((q: any) => ({
-          q: q.q.trim(),
-          options: q.options.map((o: any) => String(o).trim()).filter(Boolean).slice(0, 4),
-          correct:
-            typeof q.correct === 'number' && q.correct >= 0 && q.correct < (q.options?.length || 4)
+        .map((q) => {
+          const options = q.options.map((o) => String(o).trim()).filter(Boolean).slice(0, 4);
+          const correct =
+            typeof q.correct === 'number' && q.correct >= 0 && q.correct < options.length
               ? q.correct
-              : 0,
-          explanation:
-            (q.explanation && String(q.explanation).trim()) ||
-            'Refer to the lecture notes above for the conceptual analysis.',
-        }))
+              : 0;
+          return {
+            q: q.q.trim(),
+            options,
+            correct,
+            explanation:
+              (typeof q.explanation === 'string' && q.explanation.trim()) ||
+              'Refer to the lecture notes above for the conceptual analysis.',
+          };
+        })
     : [];
   if (quiz.length < 4) {
     throw new Error(`Incomplete quiz returned (expected 5 questions, got ${quiz.length})`);
@@ -227,17 +247,20 @@ export function validateAndSanitizeWorkspace(raw: any, lectureText: string): Wor
   quiz = quiz.slice(0, 5);
 
   // 7. Validate flashcards (strictly require at least 3 flippable cards)
-  const flashcards = Array.isArray(raw.flashcards)
-    ? raw.flashcards
+  const flashcards = Array.isArray(record.flashcards)
+    ? record.flashcards
         .filter(
-          (f: any) =>
-            f &&
-            typeof f.front === 'string' &&
-            f.front.trim() &&
-            typeof f.back === 'string' &&
-            f.back.trim()
+          (f): f is { front: string; back: string } =>
+            typeof f === 'object' &&
+            f !== null &&
+            'front' in f &&
+            typeof (f as { front: unknown }).front === 'string' &&
+            (f as { front: string }).front.trim().length > 0 &&
+            'back' in f &&
+            typeof (f as { back: unknown }).back === 'string' &&
+            (f as { back: string }).back.trim().length > 0
         )
-        .map((f: any) => ({ front: f.front.trim(), back: f.back.trim() }))
+        .map((f) => ({ front: f.front.trim(), back: f.back.trim() }))
     : [];
   if (flashcards.length < 3) {
     throw new Error(`Incomplete flashcards returned (expected at least 3, got ${flashcards.length})`);
@@ -245,12 +268,15 @@ export function validateAndSanitizeWorkspace(raw: any, lectureText: string): Wor
 
   // 8. Standardize 3-Day Schedule
   const schedule =
-    Array.isArray(raw.schedule) && raw.schedule.length === 3
-      ? raw.schedule.map((d: any) => ({
-          day: String(d.day || 'Study Day'),
-          task: String(d.task || 'Review core lecture concepts and complete active recall drills'),
-          done: false,
-        }))
+    Array.isArray(record.schedule) && record.schedule.length === 3
+      ? record.schedule.map((d) => {
+          const dayObj = typeof d === 'object' && d !== null ? (d as Record<string, unknown>) : {};
+          return {
+            day: String(dayObj.day || 'Study Day'),
+            task: String(dayObj.task || 'Review core lecture concepts and complete active recall drills'),
+            done: false,
+          };
+        })
       : [
           {
             day: 'Day 1: Foundation & Core Terms',
@@ -271,13 +297,16 @@ export function validateAndSanitizeWorkspace(raw: any, lectureText: string): Wor
 
   // 9. Standardize Cloze
   const cloze =
-    Array.isArray(raw.cloze) && raw.cloze.length > 0
-      ? raw.cloze.map((c: any) => ({
-          sentence: String(c.sentence || 'Key concept is [blank].'),
-          answers: Array.isArray(c.answers)
-            ? c.answers.map((a: any) => String(a).toLowerCase().trim())
-            : [glossary[0]?.term.toLowerCase() || 'concept'],
-        }))
+    Array.isArray(record.cloze) && record.cloze.length > 0
+      ? record.cloze.map((c) => {
+          const clozeObj = typeof c === 'object' && c !== null ? (c as Record<string, unknown>) : {};
+          return {
+            sentence: String(clozeObj.sentence || 'Key concept is [blank].'),
+            answers: Array.isArray(clozeObj.answers)
+              ? clozeObj.answers.map((a) => String(a).toLowerCase().trim())
+              : [glossary[0]?.term.toLowerCase() || 'concept'],
+          };
+        })
       : [
           {
             sentence: `The primary mechanism established in the lecture is [blank].`,
@@ -286,9 +315,10 @@ export function validateAndSanitizeWorkspace(raw: any, lectureText: string): Wor
         ];
 
   // 10. Standardize Mind Map
-  const mindmap =
-    raw.mindmap && typeof raw.mindmap.title === 'string' && raw.mindmap.title.trim()
-      ? raw.mindmap
+  const mindmapRaw = record.mindmap as { title?: unknown } | undefined;
+  const mindmap: MindMapNode =
+    mindmapRaw && typeof mindmapRaw === 'object' && typeof mindmapRaw.title === 'string' && mindmapRaw.title.trim()
+      ? (record.mindmap as MindMapNode)
       : {
           title,
           children: sections.map((s: { title: string; bullets: string[] }) => ({
@@ -414,22 +444,23 @@ Rules:
     } catch {
       // fallback
     }
-    const err = new Error(message);
-    (err as any).status = response.status;
+    const err = new Error(message) as Error & { status?: number };
+    err.status = response.status;
     throw err;
   }
 
-  const json = await response.json();
+  const json = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const content = json.choices?.[0]?.message?.content;
   if (!content || !content.trim()) {
     throw new Error('Groq returned an empty response body');
   }
 
-  let parsed: any;
+  let parsed: unknown;
   try {
     parsed = JSON.parse(content);
-  } catch (parseErr: any) {
-    throw new Error(`Corrupted JSON returned by Groq: ${parseErr.message}`);
+  } catch (parseErr: unknown) {
+    const parseMsg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+    throw new Error(`Corrupted JSON returned by Groq: ${parseMsg}`);
   }
 
   // Strict validation & consistency check
@@ -479,11 +510,15 @@ export async function callGroqAPI(
       // Advance round-robin pointer for next call
       currentPoolIndex = (activeIndex + 1) % totalKeys;
       return { data, keyIndex: activeIndex, keyMasked: maskedKey };
-    } catch (err: any) {
-      const isRateLimit = err.status === 429 || (err.message && /rate|quota|429/i.test(err.message));
+    } catch (err: unknown) {
+      const errObj = typeof err === 'object' && err !== null ? (err as { status?: number; message?: string }) : {};
+      const isRateLimit =
+        errObj.status === 429 ||
+        (typeof errObj.message === 'string' && /rate|quota|429/i.test(errObj.message));
+      const errMsg = err instanceof Error ? err.message : String(err);
       const logMsg = `Key #${activeIndex + 1} (${maskedKey}) ${
         isRateLimit ? 'RATE LIMITED (429)' : 'REJECTED'
-      }: ${err.message}`;
+      }: ${errMsg}`;
       console.warn(`[Groq Pool Failover] ${logMsg}`);
       errors.push(logMsg);
 

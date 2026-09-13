@@ -62,9 +62,7 @@ export const OPENROUTER_TEXT_MODELS = [
 ];
 
 export const DEFAULT_OPENROUTER_KEY =
-  (typeof process !== 'undefined' &&
-    (process.env.OPENROUTER_API_KEY ||
-      process.env.NEXT_PUBLIC_OPENROUTER_API_KEY)) ||
+  (typeof process !== 'undefined' && process.env.OPENROUTER_API_KEY) ||
   '';
 
 export const DEFAULT_OPENROUTER_VISION_MODEL = 'google/gemma-4-31b-it:free';
@@ -146,9 +144,9 @@ Rules:
     }
 
     return content.trim();
-  } catch (err: any) {
+  } catch (err: unknown) {
     clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
+    if (typeof err === 'object' && err !== null && 'name' in err && err.name === 'AbortError') {
       throw new Error('Request timed out after 25s');
     }
     throw err;
@@ -177,15 +175,17 @@ export async function transcribeHandwrittenImage(
   primaryModel = DEFAULT_OPENROUTER_VISION_MODEL,
   onStatusUpdate?: (status: string) => void
 ): Promise<{ text: string; usedModel: string }> {
-  // Ordered list of 100% free models to try in sequence
-  const freeCascade = [
-    primaryModel,
-    'google/gemma-4-31b-it:free',
-    'google/gemma-4-26b-a4b-it:free',
-    'openrouter/free',
-    'dots-studio/dots-3-note-preview:free',
-    'nex-agi/nex-n2.5-pro:free',
-  ].filter((m, idx, arr) => arr.indexOf(m) === idx); // Deduplicate
+  // Ordered list of 100% free models to try in sequence - O(N) deduplicated using Set
+  const freeCascade = Array.from(
+    new Set([
+      primaryModel,
+      'google/gemma-4-31b-it:free',
+      'google/gemma-4-26b-a4b-it:free',
+      'openrouter/free',
+      'dots-studio/dots-3-note-preview:free',
+      'nex-agi/nex-n2.5-pro:free',
+    ])
+  );
 
   const errors: string[] = [];
 
@@ -200,8 +200,9 @@ export async function transcribeHandwrittenImage(
     try {
       const result = await callVisionModel(apiKey, imageDataUrl, currentModel);
       return { text: result, usedModel: currentModel };
-    } catch (err: any) {
-      const errMsg = `${shortName} error: ${err.message || String(err)}`;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const errMsg = `${shortName} error: ${msg}`;
       console.warn(`[OCR Free Cascade] ${errMsg}`);
       errors.push(errMsg);
 
