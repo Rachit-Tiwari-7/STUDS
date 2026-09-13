@@ -3,7 +3,6 @@
 import React from 'react';
 import {
   LayoutDashboard,
-  Camera,
   BookOpen,
   BookMarked,
   GitBranch,
@@ -63,15 +62,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           icon: LayoutDashboard,
           symbol: '⚡',
           badge: null,
-        },
-        {
-          id: 'ocr' as ActiveViewType,
-          label: 'Handwritten OCR',
-          short: 'OCR Scanner',
-          icon: Camera,
-          symbol: '📷',
-          badge: 'FREE',
-          badgeColor: 'bg-emerald-200 text-emerald-900 border-emerald-500',
         },
       ],
     },
