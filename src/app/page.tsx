@@ -1,69 +1,657 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import React, { useState, useEffect, useCallback } from 'react';
+import { Header } from '@/components/Header';
+import { InputWorkspace } from '@/components/InputWorkspace';
+import { ColumnLeft } from '@/components/ColumnLeft';
+import { ColumnCenter } from '@/components/ColumnCenter';
+import { ColumnRight } from '@/components/ColumnRight';
+import { GroqModal } from '@/components/GroqModal';
+import { SupabaseModal } from '@/components/SupabaseModal';
+import { OpenRouterModal } from '@/components/OpenRouterModal';
+import { Sidebar } from '@/components/Sidebar';
+import { FocusedViews } from '@/components/FocusedViews';
+import {
+  WorkspaceData,
+  PersonaType,
+  DifficultyType,
+  ActiveViewType,
+} from '@/lib/types';
+import {
+  SAMPLE_LECTURE_TEXTS,
+  getCSWorkspace,
+  getBioWorkspace,
+  getGenericWorkspace,
+} from '@/lib/sampleData';
+import {
+  callGroqAPI,
+  parseGroqKeyPool,
+  DEFAULT_GROQ_KEYS,
+  DEFAULT_GROQ_MODEL,
+  resolveGroqModel,
+} from '@/lib/groq';
+import { syncWorkspaceCloud, getSupabaseClient } from '@/lib/supabase';
+import {
+  DEFAULT_OPENROUTER_KEY,
+  DEFAULT_OPENROUTER_VISION_MODEL,
+  DEFAULT_OPENROUTER_TEXT_MODEL,
+  generateWorkspaceWithOpenRouter,
+} from '@/lib/openrouter';
+
+export default function STUDSPage() {
+  // Global App States
+  const [isDark, setIsDark] = useState(false);
+  const [streak, setStreak] = useState(1);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Structured View Navigation State
+  const [activeView, setActiveView] = useState<ActiveViewType>('dashboard');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Groq State (Multi-Key Pool)
+  const [groqKeys, setGroqKeys] = useState<string[]>(DEFAULT_GROQ_KEYS);
+  const [groqModel, setGroqModel] = useState(DEFAULT_GROQ_MODEL);
+  const [isGroqModalOpen, setIsGroqModalOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // OpenRouter State (Vision OCR & Text)
+  const [openRouterKey, setOpenRouterKey] = useState(DEFAULT_OPENROUTER_KEY);
+  const [openRouterVisionModel, setOpenRouterVisionModel] = useState(DEFAULT_OPENROUTER_VISION_MODEL);
+  const [openRouterTextModel, setOpenRouterTextModel] = useState(DEFAULT_OPENROUTER_TEXT_MODEL);
+  const [isOpenRouterModalOpen, setIsOpenRouterModalOpen] = useState(false);
+
+  // Supabase State
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [supabaseConfigured, setSupabaseConfigured] = useState(false);
+
+  // Workspace Inputs & Config
+  const [rawText, setRawText] = useState('');
+  const [difficulty, setDifficulty] = useState<DifficultyType>('medium');
+  const [currentPersona, setCurrentPersona] = useState<PersonaType>('eli5');
+  const [activeRecall, setActiveRecall] = useState(true);
+  const [complexityLevel, setComplexityLevel] = useState(3);
+
+  // Generated Workspace Data
+  const [workspace, setWorkspace] = useState<WorkspaceData>(() => getCSWorkspace());
+
+  // Toast helper
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((current) => (current === msg ? null : current));
+    }, 3500);
+  }, []);
+
+  // Initialization & LocalStorage Restore
+  useEffect(() => {
+    // Theme
+    const savedTheme = localStorage.getItem('studs_theme') || localStorage.getItem('studypulse_theme');
+    if (savedTheme === 'dark') {
+      setIsDark(true);
+      document.documentElement.classList.add('dark');
+    }
+
+    // Streak
+    const savedStreak = parseInt(localStorage.getItem('studs_streak') || localStorage.getItem('studypulse_streak') || '1', 10);
+    const lastDate = localStorage.getItem('studs_last_date') || localStorage.getItem('studypulse_last_date');
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (lastDate) {
+      const last = new Date(lastDate);
+      const curr = new Date(today);
+      const diff = Math.floor((curr.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
+      if (diff === 1) {
+        setStreak(savedStreak + 1);
+        localStorage.setItem('studs_streak', String(savedStreak + 1));
+      } else if (diff === 0) {
+        setStreak(savedStreak);
+      } else {
+        setStreak(1);
+        localStorage.setItem('studs_streak', '1');
+      }
+    } else {
+      setStreak(1);
+      localStorage.setItem('studs_streak', '1');
+    }
+    localStorage.setItem('studs_last_date', today);
+
+    // Groq settings (Multi-Key Pool)
+    const gKeysRaw =
+      localStorage.getItem('studs_groq_keys') ||
+      localStorage.getItem('studypulse_groq_keys') ||
+      localStorage.getItem('studypulse_groq_key') ||
+      '';
+    const parsedStoredKeys = parseGroqKeyPool(gKeysRaw);
+    const gKeys = parsedStoredKeys.length > 0 ? parsedStoredKeys : DEFAULT_GROQ_KEYS;
+    setGroqKeys(gKeys);
+    const rawModel =
+      localStorage.getItem('studs_groq_model') ||
+      localStorage.getItem('studypulse_groq_model') ||
+      DEFAULT_GROQ_MODEL;
+    const gModel = resolveGroqModel(rawModel);
+    setGroqModel(gModel);
+
+    // OpenRouter settings
+    const orKey =
+      localStorage.getItem('studs_openrouter_key') ||
+      localStorage.getItem('studypulse_openrouter_key') ||
+      DEFAULT_OPENROUTER_KEY;
+    const orVision =
+      localStorage.getItem('studs_openrouter_vision_model') ||
+      localStorage.getItem('studypulse_openrouter_vision_model') ||
+      DEFAULT_OPENROUTER_VISION_MODEL;
+    const orText =
+      localStorage.getItem('studs_openrouter_text_model') ||
+      localStorage.getItem('studypulse_openrouter_text_model') ||
+      DEFAULT_OPENROUTER_TEXT_MODEL;
+    setOpenRouterKey(orKey);
+    setOpenRouterVisionModel(orVision);
+    setOpenRouterTextModel(orText);
+
+    // Supabase settings
+    const sUrl = localStorage.getItem('studs_supabase_url') || localStorage.getItem('studypulse_supabase_url');
+    const sKey = localStorage.getItem('studs_supabase_key') || localStorage.getItem('studypulse_supabase_key');
+    if (sUrl && sKey) {
+      setSupabaseConfigured(true);
+      const client = getSupabaseClient();
+      client?.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user?.email) {
+          setUserEmail(session.user.email);
+        }
+      });
+    }
+
+    // Workspace restore
+    const savedWorkspace = localStorage.getItem('studs_workspace') || localStorage.getItem('studypulse_workspace');
+    if (savedWorkspace) {
+      try {
+        const parsed = JSON.parse(savedWorkspace);
+        setWorkspace(parsed);
+      } catch (e) {
+        console.warn('Could not parse saved workspace', e);
+      }
+    } else {
+      setRawText(SAMPLE_LECTURE_TEXTS.cs.text);
+    }
+  }, []);
+
+  // Save workspace to LocalStorage on change
+  useEffect(() => {
+    if (workspace) {
+      localStorage.setItem('studs_workspace', JSON.stringify(workspace));
+    }
+  }, [workspace]);
+
+  // Handle Theme Toggle
+  const handleToggleTheme = () => {
+    setIsDark((prev) => {
+      const next = !prev;
+      if (next) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('studs_theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('studs_theme', 'light');
+      }
+      showToast(`Switched to ${next ? 'Dark' : 'Light'} Mode`);
+      return next;
+    });
+  };
+
+  // Handle Focus Mode Toggle
+  const handleToggleFocus = () => {
+    setIsFocusMode((prev) => {
+      const next = !prev;
+      showToast(next ? 'Focus Mode Activated (Sidebars hidden)' : 'Exited Focus Mode');
+      return next;
+    });
+  };
+
+  // Keyboard shortcut for Focus Mode (Escape key)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFocusMode) {
+        setIsFocusMode(false);
+        showToast('Exited Focus Mode');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFocusMode, showToast]);
+
+  // Handle Groq configuration save/clear
+  const handleSaveGroqConfig = (keys: string[], model: string) => {
+    const sanitizedModel = resolveGroqModel(model);
+    setGroqKeys(keys);
+    setGroqModel(sanitizedModel);
+    localStorage.setItem('studs_groq_keys', JSON.stringify(keys));
+    localStorage.setItem('studs_groq_model', sanitizedModel);
+    setIsGroqModalOpen(false);
+    showToast(`Saved ${keys.length} Groq Key(s) in Rotation Pool!`);
+  };
+
+  const handleClearGroqConfig = () => {
+    setGroqKeys([]);
+    localStorage.removeItem('studs_groq_keys');
+    localStorage.removeItem('studypulse_groq_keys');
+    localStorage.removeItem('studypulse_groq_key');
+    setIsGroqModalOpen(false);
+    showToast('Groq Key Pool cleared. Switched to Demo Mode.');
+  };
+
+  // Handle OpenRouter configuration save/clear
+  const handleSaveOpenRouterConfig = (key: string, visionModel: string, textModel: string) => {
+    setOpenRouterKey(key);
+    setOpenRouterVisionModel(visionModel);
+    setOpenRouterTextModel(textModel);
+    localStorage.setItem('studs_openrouter_key', key);
+    localStorage.setItem('studs_openrouter_vision_model', visionModel);
+    localStorage.setItem('studs_openrouter_text_model', textModel);
+    setIsOpenRouterModalOpen(false);
+    showToast(`Saved OpenRouter! Using ${visionModel.split('/')[1] || 'Vision'}`);
+  };
+
+  const handleClearOpenRouterConfig = () => {
+    setOpenRouterKey('');
+    localStorage.removeItem('studs_openrouter_key');
+    localStorage.removeItem('studypulse_openrouter_key');
+    setIsOpenRouterModalOpen(false);
+    showToast('OpenRouter settings cleared.');
+  };
+
+  // Workspace Generation Orchestrator (Groq Pool, OpenRouter, or local fallback)
+  const handleGenerateWorkspace = async () => {
+    const text = rawText.trim();
+    if (!text) {
+      showToast('Please enter, upload, or pre-load lecture text first!');
+      return;
+    }
+
+    const words = text.split(/\s+/).filter(Boolean).length;
+    const readMin = Math.max(2, Math.round(words / 200) + 3);
+    const studyTimeStr = `⏱️ ~${readMin} mins study time (${words} words)`;
+
+    let nextWorkspace: WorkspaceData | null = null;
+
+    // 1. Try Groq LPU Key Pool if keys provided
+    if (groqKeys.length > 0) {
+      setIsGenerating(true);
+      try {
+        const { data, keyIndex } = await callGroqAPI(
+          text,
+          groqModel,
+          groqKeys,
+          (statusMsg) => showToast(statusMsg)
+        );
+        nextWorkspace = data;
+        showToast(`🚀 Generated via Groq Key [${keyIndex + 1}/${groqKeys.length}]!`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn('Groq Pool failed:', msg);
+        showToast(`Groq warning: ${msg.slice(0, 50)}... Trying OpenRouter/local.`);
+        nextWorkspace = null;
+      } finally {
+        setIsGenerating(false);
+      }
+    }
+
+    // 2. Try OpenRouter if key provided (or if Groq was empty/failed)
+    if (!nextWorkspace && openRouterKey.trim()) {
+      setIsGenerating(true);
+      try {
+        nextWorkspace = await generateWorkspaceWithOpenRouter(
+          openRouterKey,
+          text,
+          difficulty,
+          openRouterTextModel
+        );
+        showToast('🚀 OpenRouter AI Workspace Generated!');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn('OpenRouter generation failed:', msg);
+        showToast(`OpenRouter warning: ${msg.slice(0, 50)}... Using local engine.`);
+        nextWorkspace = null;
+      } finally {
+        setIsGenerating(false);
+      }
+    }
+
+    if (!nextWorkspace) {
+      const isBio = /cell|glycolysis|atp|respiration|mitochondri/i.test(text);
+      const isCS = /process|thread|mutex|deadlock|semaphore|concurrency/i.test(text);
+
+      if (isCS) {
+        nextWorkspace = getCSWorkspace();
+      } else if (isBio) {
+        nextWorkspace = getBioWorkspace();
+      } else {
+        const firstLine = text.split('\n')[0].replace(/[:#]/g, '').slice(0, 60);
+        nextWorkspace = getGenericWorkspace(text, firstLine);
+      }
+    }
+
+    nextWorkspace.studyTimeStr = studyTimeStr;
+    setWorkspace(nextWorkspace);
+
+    // Sync to Supabase cloud if logged in
+    syncWorkspaceCloud(nextWorkspace, streak).then(({ success }) => {
+      if (success) showToast('Workspace synced to Supabase Cloud! ☁️');
+    });
+
+    // Scroll to dashboard
+    const el = document.getElementById('dashboard-grid');
+    el?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Persona switch transformation
+  const handlePersonaChange = (persona: PersonaType) => {
+    setCurrentPersona(persona);
+
+    setWorkspace((prev) => {
+      const updatedSections = prev.sections.map((sec) => ({
+        ...sec,
+        bullets: sec.bullets.map((b) => {
+          const clean = b.replace(/\[\[(.*?)\]\]/g, '$1');
+          if (persona === 'eli5') {
+            return `👶 <em>Like building blocks:</em> ${clean.replace(/deadlock/gi, 'traffic jam').replace(/process/gi, 'kitchen chef')}`;
+          } else if (persona === 'professor') {
+            return `🎓 <strong>Rigorous Principle:</strong> Note with precision that ${clean}. (Examinable concept!)`;
+          } else if (persona === 'cram') {
+            return `🚨 <strong>EXAM TRAP:</strong> ${clean} — Memorize this line for guaranteed points!`;
+          } else {
+            return `⚡ ${clean.slice(0, 90)}...`;
+          }
+        }),
+      }));
+      return { ...prev, sections: updatedSections };
+    });
+
+    showToast(`Switched tone to: ${persona.toUpperCase()}`);
+  };
+
+  // Schedule toggle
+  const handleToggleScheduleItem = (idx: number) => {
+    setWorkspace((prev) => {
+      const newSchedule = [...prev.schedule];
+      if (newSchedule[idx]) {
+        newSchedule[idx] = { ...newSchedule[idx], done: !newSchedule[idx].done };
+      }
+      return { ...prev, schedule: newSchedule };
+    });
+  };
+
+  // Export handlers
+  const handleExportMarkdown = () => {
+    let md = `# ${workspace.title}\n\n> ${workspace.studyTimeStr || ''}\n\n`;
+    md += `## Key Takeaways\n`;
+    workspace.takeaways.forEach((t) => { md += `- ${t}\n`; });
+    md += `\n## Key Definitions\n`;
+    workspace.glossary.forEach((g) => { md += `- **${g.term}**: ${g.def}\n`; });
+    md += `\n## Revision Notes\n`;
+    workspace.sections.forEach((s) => {
+      md += `### ${s.title} (${s.complexity.toUpperCase()})\n`;
+      s.bullets.forEach((b) => {
+        md += `- ${b.replace(/\[\[(.*?)\]\]/g, '$1')}\n`;
+      });
+      md += `\n`;
+    });
+    md += `\n---\n*Generated by STUDS*\n`;
+
+    navigator.clipboard.writeText(md).then(() => {
+      showToast('Markdown copied to clipboard! 📋');
+    });
+  };
+
+  const handleExportText = () => {
+    let txt = `=== ${workspace.title} ===\n${workspace.studyTimeStr || ''}\n\n`;
+    txt += `--- KEY TAKEAWAYS ---\n` + workspace.takeaways.map((t, i) => `${i + 1}. ${t}`).join('\n') + `\n\n`;
+    txt += `--- GLOSSARY ---\n` + workspace.glossary.map((g) => `* ${g.term}: ${g.def}`).join('\n') + `\n\n`;
+    txt += `--- REVISION NOTES ---\n`;
+    workspace.sections.forEach((s) => {
+      txt += `[${s.complexity.toUpperCase()}] ${s.title}\n`;
+      s.bullets.forEach((b) => {
+        txt += `  • ${b.replace(/\[\[(.*?)\]\]/g, '$1')}\n`;
+      });
+      txt += `\n`;
+    });
+
+    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `STUDS_${workspace.title.slice(0, 20).replace(/\s+/g, '_')}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Downloaded .TXT summary file! 💾');
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleSyncCloud = async () => {
+    const res = await syncWorkspaceCloud(workspace, streak);
+    if (res.success) {
+      showToast('Workspace synced to Supabase Cloud! ☁️');
+    } else {
+      showToast(`Cloud sync note: ${res.error || 'Check login status'}`);
+    }
+  };
+
+  const viewTitles: Record<ActiveViewType, string> = {
+    dashboard: 'All-in-One Dashboard',
+    notes: 'Revision Notes & Spoilers',
+    flashcards: '3D Flashcards Deck',
+    quiz: '5-Question Assessment',
+    schedule: '3-Day Study Schedule',
+    mindmap: 'Interactive Mind Map',
+    glossary: 'Key Terms & Mnemonics',
+    cloze: 'Fill-in-the-Blanks Drill',
+    ocr: 'Handwritten Notes OCR',
+    export: 'Export & Print Sheet',
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="min-h-screen flex flex-row font-sans bg-[var(--bg-main)] text-[var(--text-main)]">
+      {/* Dedicated Left Navigation Sidebar */}
+      {!isFocusMode && (
+        <Sidebar
+          activeView={activeView}
+          onSelectView={setActiveView}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          isMobileOpen={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
+          workspace={workspace}
+          streak={streak}
+          groqKeysCount={groqKeys.length}
+          openRouterKeyConfigured={Boolean(openRouterKey.trim())}
+          userEmail={userEmail}
+          supabaseConfigured={supabaseConfigured}
+          isDark={isDark}
+          onToggleTheme={handleToggleTheme}
+          onOpenGroqModal={() => setIsGroqModalOpen(true)}
+          onOpenOpenRouterModal={() => setIsOpenRouterModalOpen(true)}
+          onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+      )}
+
+      {/* Main Workspace Canvas */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Sticky Header with active view indicator & mobile menu */}
+        <Header
+          streak={streak}
+          isDark={isDark}
+          onToggleTheme={handleToggleTheme}
+          isFocusMode={isFocusMode}
+          onToggleFocus={handleToggleFocus}
+          onOpenGroqModal={() => setIsGroqModalOpen(true)}
+          onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+          groqKeysCount={groqKeys.length}
+          groqModel={groqModel}
+          supabaseConfigured={supabaseConfigured}
+          userEmail={userEmail}
+          openRouterKeyConfigured={Boolean(openRouterKey.trim())}
+          onOpenOpenRouterModal={() => setIsOpenRouterModalOpen(true)}
+          onOpenMobileMenu={() => setIsMobileSidebarOpen(true)}
+          activeViewTitle={viewTitles[activeView]}
+        />
+
+        {/* Focus Mode Exit Floating Button */}
+        {isFocusMode && (
+          <button
+            onClick={handleToggleFocus}
+            className="fixed top-4 right-4 z-50 btn-comic btn-comic-yellow no-print"
+          >
+            ❌ Exit Focus Mode (Esc)
+          </button>
+        )}
+
+        {/* Print View Header (Visible only when printing) */}
+        <div className="print-only p-6 border-b-2 border-black">
+          <h1 className="text-2xl font-black font-studs">{workspace.title}</h1>
+          <p className="text-xs text-gray-600 font-bold">
+            Generated with STUDS • Estimated Study Time: {workspace.studyTimeStr}
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+
+        {/* Active View Container */}
+        <div className="flex-1 p-3 sm:p-6 overflow-y-auto">
+          {activeView === 'dashboard' ? (
+            <>
+              {/* Hero & Input Area */}
+              {!isFocusMode && (
+                <InputWorkspace
+                  rawText={rawText}
+                  onTextChange={setRawText}
+                  difficulty={difficulty}
+                  onDifficultyChange={setDifficulty}
+                  onGenerate={handleGenerateWorkspace}
+                  isGenerating={isGenerating}
+                  groqModel={groqModel}
+                  openRouterKey={openRouterKey}
+                  openRouterVisionModel={openRouterVisionModel}
+                  onOpenOpenRouterModal={() => setIsOpenRouterModalOpen(true)}
+                />
+              )}
+
+              {/* 3-Column Dashboard Layout */}
+              <main
+                id="dashboard-grid"
+                className={`max-w-[1520px] mx-auto my-7 px-2 sm:px-5 grid gap-6 items-start transition-all ${
+                  isFocusMode
+                    ? 'grid-cols-1 max-w-[860px]'
+                    : 'grid-cols-1 lg:grid-cols-[310px_1fr] xl:grid-cols-[310px_minmax(0,1fr)_370px]'
+                }`}
+              >
+                {/* Column 1 (Left): Persona, Glossary, Mnemonics, Schedule, Mind Map */}
+                {!isFocusMode && (
+                  <ColumnLeft
+                    currentPersona={currentPersona}
+                    onPersonaChange={handlePersonaChange}
+                    glossary={workspace.glossary}
+                    mnemonics={workspace.mnemonics}
+                    schedule={workspace.schedule}
+                    onToggleScheduleItem={handleToggleScheduleItem}
+                    mindmap={workspace.mindmap}
+                  />
+                )}
+
+                {/* Column 2 (Center): Takeaways, Controls, Notes, Cloze, Export */}
+                <ColumnCenter
+                  takeaways={workspace.takeaways}
+                  sections={workspace.sections}
+                  cloze={workspace.cloze}
+                  studyTimeStr={workspace.studyTimeStr || '⏱️ ~5 mins study time'}
+                  activeRecall={activeRecall}
+                  onToggleActiveRecall={() => setActiveRecall(!activeRecall)}
+                  complexityLevel={complexityLevel}
+                  onComplexityChange={setComplexityLevel}
+                  onExportMarkdown={handleExportMarkdown}
+                  onExportText={handleExportText}
+                  onPrint={handlePrint}
+                  onShowToast={showToast}
+                />
+
+                {/* Column 3 (Right): Quiz, Weakness Analysis, 3D Flashcards */}
+                {!isFocusMode && (
+                  <ColumnRight
+                    quiz={workspace.quiz}
+                    flashcards={workspace.flashcards}
+                    difficulty={difficulty}
+                    onShowToast={showToast}
+                  />
+                )}
+              </main>
+            </>
+          ) : (
+            <FocusedViews
+              activeView={activeView}
+              workspace={workspace}
+              currentPersona={currentPersona}
+              onPersonaChange={handlePersonaChange}
+              activeRecall={activeRecall}
+              onToggleActiveRecall={() => setActiveRecall(!activeRecall)}
+              complexityLevel={complexityLevel}
+              onComplexityChange={setComplexityLevel}
+              onToggleScheduleItem={handleToggleScheduleItem}
+              difficulty={difficulty}
+              onExportMarkdown={handleExportMarkdown}
+              onExportText={handleExportText}
+              onPrint={handlePrint}
+              onShowToast={showToast}
+              openRouterKey={openRouterKey}
+              openRouterVisionModel={openRouterVisionModel}
+              onOpenOpenRouterModal={() => setIsOpenRouterModalOpen(true)}
+              onTextChange={setRawText}
+              onGenerate={handleGenerateWorkspace}
+              isGenerating={isGenerating}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          )}
         </div>
-      </main>
+      </div>
+
+      {/* Modals */}
+      <GroqModal
+        isOpen={isGroqModalOpen}
+        onClose={() => setIsGroqModalOpen(false)}
+        currentKeys={groqKeys}
+        currentModel={groqModel}
+        onSave={handleSaveGroqConfig}
+        onClear={handleClearGroqConfig}
+      />
+
+      <SupabaseModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
+        userEmail={userEmail}
+        onAuthChange={setUserEmail}
+        onSyncCloud={handleSyncCloud}
+        onShowToast={showToast}
+      />
+
+      <OpenRouterModal
+        isOpen={isOpenRouterModalOpen}
+        onClose={() => setIsOpenRouterModalOpen(false)}
+        currentKey={openRouterKey}
+        currentVisionModel={openRouterVisionModel}
+        currentTextModel={openRouterTextModel}
+        onSave={handleSaveOpenRouterConfig}
+        onClear={handleClearOpenRouterConfig}
+      />
+
+      {/* Comic Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 pointer-events-none no-print">
+          <div className="toast-pill show">
+            <span>⚡</span>
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

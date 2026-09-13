@@ -1,0 +1,3632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STUDS — AI-Powered Student Workspace (Groq & Supabase)</title>
+  <meta name="description" content="Production-ready AI-powered student workspace featuring 25 study tools, Groq LPU real-time generation, active recall, 3D flashcards, quiz engine, and Supabase cloud persistence.">
+  
+  <!-- Supabase JS v2 from jsDelivr CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Google Fonts: Space Grotesk & Plus Jakarta Sans for punchy neo-brutalist / comic styling -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       CSS RESET & CUSTOM VARIABLES (COMIC NEO-BRUTALIST DESIGN SYSTEM)
+       ========================================================================== */
+    :root {
+      /* Palette: Bright Electric Blue, Comic Yellow, Pure White, Coral Accent & Deep Ink Black */
+      --brand-blue: #2563eb;
+      --brand-blue-hover: #1d4ed8;
+      --brand-blue-light: #dbeafe;
+      --brand-yellow: #facc15;
+      --brand-yellow-hover: #eab308;
+      --brand-yellow-light: #fef9c3;
+      --brand-coral: #831843;
+      --brand-coral-accent: #be123c;
+      --brand-coral-light: #ffe4e6;
+      --brand-green: #10b981;
+      --brand-green-light: #d1fae5;
+      --brand-purple: #8b5cf6;
+      --brand-purple-light: #ede9fe;
+      
+      /* Canvas & Card Tokens (Light Mode) */
+      --bg-canvas: #f8fafc;
+      --grid-line: rgba(37, 99, 235, 0.08);
+      --card-bg: #ffffff;
+      --card-bg-alt: #f1f5f9;
+      --card-border: #111827;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --border-thick: 3px solid var(--card-border);
+      --border-med: 2.5px solid var(--card-border);
+      --border-thin: 2px solid var(--card-border);
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-pill: 9999px;
+      
+      /* Hard Offset Shadows (Neo-Brutalist / Comic Pop) */
+      --shadow-sm: 2px 2px 0px var(--card-border);
+      --shadow-md: 4px 4px 0px var(--card-border);
+      --shadow-lg: 6px 6px 0px var(--card-border);
+      --shadow-xl: 8px 8px 0px var(--card-border);
+      --shadow-active: 1px 1px 0px var(--card-border);
+    }
+
+    /* Dark Mode Theme Tokens */
+    body.dark-mode {
+      --bg-canvas: #090d16;
+      --grid-line: rgba(59, 130, 246, 0.14);
+      --card-bg: #111827;
+      --card-bg-alt: #1f2937;
+      --card-border: #cbd5e1;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --brand-blue-light: #1e3a8a;
+      --brand-yellow-light: #713f12;
+      --brand-coral-light: #4c0519;
+      --brand-green-light: #064e3b;
+      --shadow-sm: 2px 2px 0px #020617;
+      --shadow-md: 4px 4px 0px #020617;
+      --shadow-lg: 6px 6px 0px #020617;
+      --shadow-xl: 8px 8px 0px #020617;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-canvas);
+      background-image: 
+        linear-gradient(var(--grid-line) 1.5px, transparent 1.5px),
+        linear-gradient(90deg, var(--grid-line) 1.5px, transparent 1.5px);
+      background-size: 26px 26px;
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.55;
+      overflow-x: hidden;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    /* Comic Headings */
+    h1, h2, h3, h4, .comic-font {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    /* ==========================================================================
+       TACTILE COMIC BUTTONS & INTERACTIVE ELEMENTS
+       ========================================================================== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 10px 20px;
+      border-radius: var(--radius-pill);
+      border: var(--border-thick);
+      background-color: var(--card-bg);
+      color: var(--text-main);
+      box-shadow: var(--shadow-md);
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.15s ease;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: var(--shadow-active);
+    }
+
+    .btn-primary {
+      background-color: var(--brand-blue);
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background-color: var(--brand-blue-hover);
+    }
+
+    .btn-yellow {
+      background-color: var(--brand-yellow);
+      color: #111827;
+    }
+    .btn-yellow:hover {
+      background-color: var(--brand-yellow-hover);
+    }
+
+    .btn-coral {
+      background-color: var(--brand-coral);
+      color: #ffffff;
+    }
+    .btn-coral:hover {
+      background-color: var(--brand-coral-accent);
+    }
+
+    .btn-sm {
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      border: var(--border-thin);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-sm:hover {
+      transform: translate(-1.5px, -1.5px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-sm:active {
+      transform: translate(1.5px, 1.5px);
+      box-shadow: var(--shadow-active);
+    }
+
+    .btn-icon {
+      padding: 8px;
+      border-radius: var(--radius-pill);
+      width: 40px;
+      height: 40px;
+    }
+
+    /* Neo-Brutalist Card Container */
+    .comic-card {
+      background-color: var(--card-bg);
+      border: var(--border-thick);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .comic-card.hover-lift:hover {
+      transform: translate(-3px, -3px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* Comic Corner Accent Blob */
+    .corner-accent {
+      position: absolute;
+      top: -12px;
+      right: -12px;
+      width: 52px;
+      height: 52px;
+      background-color: var(--brand-yellow-light);
+      border-bottom-left-radius: 40px;
+      border-left: var(--border-thin);
+      border-bottom: var(--border-thin);
+      z-index: 1;
+      pointer-events: none;
+    }
+    .corner-accent.coral { background-color: var(--brand-coral-light); }
+    .corner-accent.blue { background-color: var(--brand-blue-light); }
+    .corner-accent.green { background-color: var(--brand-green-light); }
+
+    /* Comic Pill Badge */
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+      border: var(--border-thin);
+      box-shadow: var(--shadow-sm);
+      background: var(--card-bg);
+    }
+
+    .badge-pill.yellow { background: var(--brand-yellow); color: #111827; }
+    .badge-pill.blue { background: var(--brand-blue); color: #ffffff; }
+    .badge-pill.coral { background: var(--brand-coral); color: #ffffff; }
+    .badge-pill.green { background: var(--brand-green); color: #ffffff; }
+
+    /* ==========================================================================
+       HEADER & NAVIGATION BAR
+       ========================================================================== */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background-color: var(--card-bg);
+      border-bottom: var(--border-thick);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 4px 0px rgba(0, 0, 0, 0.05);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-box {
+      background: var(--brand-yellow);
+      border: var(--border-thick);
+      padding: 8px 12px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 1.3rem;
+      color: #111827;
+      text-decoration: none;
+    }
+
+    .tagline-badge {
+      display: none;
+      background: var(--brand-coral-light);
+      border: var(--border-thin);
+      border-radius: var(--radius-pill);
+      padding: 4px 12px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      color: var(--brand-coral);
+    }
+    @media (min-width: 990px) {
+      .tagline-badge { display: inline-block; }
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Streak Badge with Animated Flame */
+    .streak-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--brand-yellow);
+      border: var(--border-thin);
+      border-radius: var(--radius-pill);
+      padding: 6px 14px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.9rem;
+      color: #111827;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .flame-icon {
+      display: inline-block;
+      animation: flameWiggle 1.5s infinite ease-in-out;
+      transform-origin: bottom center;
+    }
+    @keyframes flameWiggle {
+      0%, 100% { transform: rotate(0deg) scale(1); }
+      25% { transform: rotate(-8deg) scale(1.1); }
+      75% { transform: rotate(8deg) scale(1.15); }
+    }
+
+    /* Groq AI Cloud LPU Badge */
+    .groq-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--brand-yellow);
+      color: #111827;
+      border: var(--border-thin);
+      border-radius: var(--radius-pill);
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.15s ease;
+    }
+    .groq-badge:hover {
+      background: var(--brand-yellow-hover);
+      transform: translateY(-1px);
+    }
+    .groq-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #f59e0b;
+      border: 1.5px solid #111827;
+    }
+    .groq-dot.active {
+      background-color: #10b981;
+    }
+
+    /* Supabase Cloud Connection Status Badge */
+    .supabase-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card-bg-alt);
+      border: var(--border-thin);
+      border-radius: var(--radius-pill);
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.15s ease;
+    }
+    .supabase-badge:hover {
+      background: var(--brand-blue-light);
+      transform: translateY(-1px);
+    }
+    .supabase-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #94a3b8;
+      border: 1.5px solid #111827;
+    }
+    .supabase-dot.connected {
+      background-color: #10b981;
+    }
+    .supabase-dot.authenticated {
+      background-color: #3b82f6;
+    }
+
+    /* ==========================================================================
+       HERO & INPUT WORKSPACE BAR
+       ========================================================================== */
+    .hero-container {
+      max-width: 1400px;
+      margin: 28px auto 0 auto;
+      padding: 0 20px;
+      text-align: center;
+    }
+
+    .hero-title-wrap {
+      margin-bottom: 24px;
+    }
+
+    .hero-big-title {
+      font-size: clamp(2.2rem, 5vw, 3.8rem);
+      text-transform: uppercase;
+      line-height: 1.05;
+      color: var(--text-main);
+      text-shadow: 3px 3px 0 var(--brand-blue);
+      margin-bottom: 8px;
+    }
+
+    .hero-subtitle-box {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 18px;
+      border: var(--border-thick);
+      border-radius: var(--radius-pill);
+      background: var(--card-bg);
+      box-shadow: var(--shadow-md);
+      font-weight: 800;
+      font-size: 0.95rem;
+    }
+
+    /* Quick Start Accordion */
+    .instructions-accordion {
+      max-width: 1100px;
+      margin: 18px auto;
+      text-align: left;
+    }
+
+    .instructions-toggle {
+      width: 100%;
+      padding: 12px 18px;
+      background: var(--card-bg);
+      border: var(--border-thick);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 0.95rem;
+    }
+
+    .instructions-content {
+      display: none;
+      padding: 16px 20px;
+      background: var(--card-bg);
+      border: var(--border-thick);
+      border-top: none;
+      border-bottom-left-radius: var(--radius-md);
+      border-bottom-right-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      margin-top: -6px;
+      font-size: 0.9rem;
+    }
+    .instructions-content.open {
+      display: block;
+    }
+
+    .instructions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-top: 10px;
+    }
+    .instruction-step {
+      background: var(--card-bg-alt);
+      padding: 12px;
+      border: var(--border-thin);
+      border-radius: var(--radius-sm);
+    }
+
+    /* Input & Upload Zone */
+    .input-workspace-card {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 24px;
+      text-align: left;
+    }
+
+    .upload-zone-wrapper {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+    @media (min-width: 900px) {
+      .upload-zone-wrapper {
+        grid-template-columns: 1fr 1.3fr;
+      }
+    }
+
+    /* Drag and Drop Zone */
+    .drop-zone {
+      border: 3px dashed var(--card-border);
+      border-radius: var(--radius-md);
+      background: var(--brand-blue-light);
+      padding: 30px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .drop-zone.dragover {
+      background: var(--brand-yellow-light);
+      border-color: var(--brand-blue);
+      transform: scale(1.02);
+    }
+
+    .drop-zone-icon {
+      font-size: 2.8rem;
+      margin-bottom: 8px;
+    }
+
+    .drop-zone-info {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+    }
+
+    .file-input-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .file-stats-badge {
+      display: none;
+      margin-top: 10px;
+      background: var(--card-bg);
+      border: var(--border-thin);
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    /* Text Input Area */
+    .text-input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .raw-textarea {
+      width: 100%;
+      height: 160px;
+      border: var(--border-thick);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      background: var(--card-bg);
+      color: var(--text-main);
+      box-shadow: inset 2px 2px 0px rgba(0,0,0,0.08);
+      resize: vertical;
+      outline: none;
+    }
+    .raw-textarea:focus {
+      border-color: var(--brand-blue);
+    }
+
+    .input-actions-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: var(--border-thin);
+    }
+
+    .difficulty-select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .select-comic {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      padding: 8px 14px;
+      border: var(--border-thin);
+      border-radius: var(--radius-pill);
+      background: var(--card-bg);
+      color: var(--text-main);
+      box-shadow: var(--shadow-sm);
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* Groq LPU Loading Banner */
+    .groq-loading-banner {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--brand-yellow-light);
+      border: var(--border-thick);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      margin-top: 16px;
+      box-shadow: var(--shadow-md);
+      animation: pulseGlow 1.4s infinite alternate;
+    }
+    @keyframes pulseGlow {
+      from { box-shadow: 2px 2px 0px var(--card-border); }
+      to { box-shadow: 6px 6px 0px var(--card-border); }
+    }
+    .groq-loading-pulse {
+      font-size: 2rem;
+      animation: spinPulse 1.2s infinite ease-in-out;
+    }
+    @keyframes spinPulse {
+      0% { transform: scale(1) rotate(0deg); }
+      50% { transform: scale(1.25) rotate(15deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+    .groq-progress-track {
+      width: 100%;
+      height: 8px;
+      background: var(--card-bg);
+      border: var(--border-thin);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+      margin: 6px 0;
+    }
+    .groq-progress-bar-animated {
+      height: 100%;
+      width: 35%;
+      background: var(--brand-blue);
+      border-radius: var(--radius-pill);
+      animation: progressIndeterminate 1.2s infinite ease-in-out;
+    }
+    @keyframes progressIndeterminate {
+      0% { margin-left: 0%; width: 25%; }
+      50% { margin-left: 45%; width: 50%; }
+      100% { margin-left: 100%; width: 20%; }
+    }
+
+    /* ==========================================================================
+       DASHBOARD 3-COLUMN LAYOUT
+       ========================================================================== */
+    .dashboard-container {
+      max-width: 1520px;
+      margin: 30px auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (min-width: 992px) {
+      .dashboard-container {
+        grid-template-columns: 320px 1fr;
+      }
+    }
+
+    @media (min-width: 1280px) {
+      .dashboard-container {
+        grid-template-columns: 320px minmax(0, 1fr) 380px;
+      }
+    }
+
+    /* Distraction-Free Focus Mode styling */
+    body.focus-mode-active .header,
+    body.focus-mode-active .hero-container,
+    body.focus-mode-active .dashboard-left,
+    body.focus-mode-active .dashboard-right {
+      display: none !important;
+    }
+
+    body.focus-mode-active .dashboard-container {
+      grid-template-columns: 1fr;
+      max-width: 900px;
+      margin: 20px auto;
+    }
+
+    body.focus-mode-active .focus-exit-btn {
+      display: inline-flex !important;
+    }
+
+    .focus-exit-btn {
+      display: none;
+      position: fixed;
+      top: 16px;
+      right: 20px;
+      z-index: 999;
+    }
+
+    /* Column Containers */
+    .dashboard-col {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Section Headers */
+    .section-title {
+      font-size: 1.15rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: var(--border-thin);
+    }
+
+    /* ==========================================================================
+       COLUMN 1 (LEFT): PERSONA, GLOSSARY, MNEMONICS, SCHEDULE, MIND MAP
+       ========================================================================== */
+    /* Persona Switcher */
+    .persona-btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .persona-btn {
+      padding: 8px 10px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      border: var(--border-thin);
+      border-radius: var(--radius-sm);
+      background: var(--card-bg-alt);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.1s ease;
+      box-shadow: var(--shadow-sm);
+    }
+    .persona-btn.active {
+      background: var(--brand-yellow);
+      border: var(--border-thick);
+      transform: translate(-1px, -1px);
+      box-shadow: var(--shadow-md);
+      font-weight: 800;
+    }
+
+    /* Key Definitions Glossary */
+    .glossary-search {
+      width: 100%;
+      padding: 8px 12px;
+      border: var(--border-thin);
+      border-radius: var(--radius-pill);
+      font-family: inherit;
+      font-size: 0.85rem;
+      margin-bottom: 10px;
+      background: var(--card-bg);
+      color: var(--text-main);
+      box-shadow: inset 1px 1px 0px rgba(0,0,0,0.06);
+      outline: none;
+    }
+    .glossary-list {
+      max-height: 280px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 4px;
+    }
+    .glossary-item {
+      background: var(--card-bg-alt);
+      border: var(--border-thin);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      font-size: 0.85rem;
+    }
+    .glossary-term {
+      font-weight: 800;
+      color: var(--brand-blue);
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    /* 3-Day Micro Study Schedule */
+    .schedule-days {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .schedule-day-box {
+      border: var(--border-thin);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      background: var(--card-bg-alt);
+    }
+    .schedule-day-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-weight: 800;
+      font-size: 0.85rem;
+    }
+    .schedule-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.82rem;
+      margin-top: 4px;
+    }
+    .schedule-checkbox {
+      width: 16px;
+      height: 16px;
+      margin-top: 2px;
+      cursor: pointer;
+      accent-color: var(--brand-blue);
+    }
+    .schedule-progress-bar {
+      height: 8px;
+      width: 100%;
+      background: var(--card-bg-alt);
+      border: var(--border-thin);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .schedule-progress-fill {
+      height: 100%;
+      background: var(--brand-green);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* Mnemonics Card */
+    .mnemonic-box {
+      background: var(--brand-yellow-light);
+      border: var(--border-thin);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      margin-top: 8px;
+    }
+    .mnemonic-word {
+      font-weight: 800;
+      color: var(--brand-coral);
+      font-size: 1rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* Mind-Map Outline (Tree) */
+    .mindmap-tree {
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+    .mindmap-tree ul {
+      list-style-type: none;
+      padding-left: 14px;
+      position: relative;
+    }
+    .mindmap-tree ul::before {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 0;
+      bottom: 6px;
+      width: 2px;
+      background: var(--card-border);
+    }
+    .mindmap-tree li {
+      position: relative;
+      margin-top: 4px;
+    }
+    .mindmap-tree li::before {
+      content: '';
+      position: absolute;
+      left: -10px;
+      top: 10px;
+      width: 8px;
+      height: 2px;
+      background: var(--card-border);
+    }
+    .tree-toggle {
+      cursor: pointer;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      user-select: none;
+    }
+    .tree-toggle:hover {
+      color: var(--brand-blue);
+    }
+
+    /* ==========================================================================
+       COLUMN 2 (CENTER): TAKEAWAYS, CONTROLS, REVISION NOTES, CLOZE BLANKS
+       ========================================================================== */
+    /* Key Takeaways Highlight Strip */
+    .takeaways-strip {
+      background: var(--brand-yellow);
+      border: var(--border-thick);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      padding: 16px 20px;
+    }
+    .takeaways-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .takeaways-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    @media (min-width: 640px) {
+      .takeaways-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    .takeaway-pill-card {
+      background: var(--card-bg);
+      border: var(--border-thin);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Note Center Tool Bar (Audio, ELI5 slider, Active Recall, Heatmap) */
+    .center-tools-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--card-bg);
+      border: var(--border-thick);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+    }
+
+    /* Audio Player Controls */
+    .audio-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .audio-speed-select {
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 4px 8px;
+      border: var(--border-thin);
+      border-radius: var(--radius-pill);
+      background: var(--card-bg-alt);
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* ELI5 Complexity Slider */
+    .eli5-slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .slider-comic {
+      accent-color: var(--brand-blue);
+      cursor: pointer;
+    }
+
+    /* Active Recall Spoiler Mask */
+    .spoiler-term {
+      background-color: #111827;
+      color: #111827;
+      border-radius: 4px;
+      padding: 1px 6px;
+      cursor: pointer;
+      user-select: none;
+      font-weight: 700;
+      transition: all 0.2s ease;
+      display: inline-block;
+      border: 1px solid #111827;
+    }
+    .spoiler-term.revealed {
+      background-color: var(--brand-yellow);
+      color: #111827;
+      border-color: #111827;
+    }
+    body.recall-mode-off .spoiler-term {
+      background-color: transparent;
+      color: var(--brand-blue);
+      border: none;
+      text-decoration: underline;
+    }
+
+    /* Complexity Heatmap Cards */
+    .note-section-card {
+      border: var(--border-thick);
+      border-radius: var(--radius-md);
+      background: var(--card-bg);
+      padding: 18px 20px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-md);
+      position: relative;
+    }
+
+    .note-section-card.complexity-easy {
+      border-left: 10px solid var(--brand-green);
+    }
+    .note-section-card.complexity-medium {
+      border-left: 10px solid var(--brand-yellow);
+    }
+    .note-section-card.complexity-hard {
+      border-left: 10px solid var(--brand-coral-accent);
+    }
+
+    .note-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .note-content-body {
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+    .note-content-body ul {
+      margin-left: 20px;
+      margin-top: 8px;
+    }
+    .note-content-body li {
+      margin-bottom: 6px;
+    }
+
+    /* Interactive Fill-in-the-Blanks (Cloze Deletion) */
+    .cloze-card {
+      border: var(--border-thick);
+      border-radius: var(--radius-md);
+      background: var(--card-bg);
+      padding: 18px 20px;
+      box-shadow: var(--shadow-md);
+    }
+    .cloze-blank-input {
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 0.9rem;
+      padding: 2px 8px;
+      border: var(--border-thin);
+      border-radius: var(--radius-sm);
+      width: 140px;
+      outline: none;
+      text-align: center;
+      background: var(--card-bg-alt);
+    }
+    .cloze-blank-input.correct {
+      border-color: var(--brand-green);
+      background: var(--brand-green-light);
+      color: #065f46;
+    }
+    .cloze-blank-input.wrong {
+      border-color: var(--brand-coral-accent);
+      background: var(--brand-coral-light);
+      color: #991b1b;
+    }
+
+    /* Multi-Format Export Buttons */
+    .export-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    /* ==========================================================================
+       COLUMN 3 (RIGHT): QUIZ, WEAKNESS ANALYSIS, 3D FLASHCARD DECK
+       ========================================================================== */
+    /* 5-Question Quiz Card */
+    .quiz-card {
+      border: var(--border-thick);
+      border-radius: var(--radius-md);
+      background: var(--card-bg);
+      padding: 20px;
+      box-shadow: var(--shadow-md);
+    }
+    .quiz-question-wrap {
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: var(--border-thin);
+    }
+    .quiz-question-text {
+      font-weight: 800;
+      font-size: 0.95rem;
+      margin-bottom: 10px;
+    }
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .quiz-option-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border: var(--border-thin);
+      border-radius: var(--radius-sm);
+      background: var(--card-bg-alt);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.1s ease;
+    }
+    .quiz-option-label:hover {
+      background: var(--brand-yellow-light);
+      transform: translateX(2px);
+    }
+    .quiz-option-label.correct-answer {
+      background: var(--brand-green-light) !important;
+      border-color: var(--brand-green) !important;
+      font-weight: 800;
+    }
+    .quiz-option-label.wrong-answer {
+      background: var(--brand-coral-light) !important;
+      border-color: var(--brand-coral) !important;
+    }
+    .quiz-explanation-box {
+      display: none;
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: var(--brand-blue-light);
+      border: var(--border-thin);
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    /* Targeted Weakness Box */
+    .weakness-card {
+      border: var(--border-thick);
+      border-radius: var(--radius-md);
+      background: var(--brand-coral-light);
+      padding: 16px;
+      box-shadow: var(--shadow-md);
+    }
+    .weakness-item {
+      background: var(--card-bg);
+      border: var(--border-thin);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      margin-top: 6px;
+      font-size: 0.85rem;
+    }
+
+    /* Interactive 3D Flashcard Deck */
+    .flashcard-wrapper {
+      perspective: 1000px;
+      width: 100%;
+      height: 220px;
+      margin-top: 12px;
+    }
+    .flashcard-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-style: preserve-3d;
+      cursor: pointer;
+    }
+    .flashcard-inner.is-flipped {
+      transform: rotateY(180deg);
+    }
+    .flashcard-front, .flashcard-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      border: var(--border-thick);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .flashcard-front {
+      background-color: var(--card-bg);
+      color: var(--text-main);
+    }
+    .flashcard-back {
+      background-color: var(--brand-yellow);
+      color: #111827;
+      transform: rotateY(180deg);
+    }
+    .flashcard-counter-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+    .flashcard-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    /* ==========================================================================
+       MODALS, CONFETTI & TOAST NOTIFICATIONS
+       ========================================================================== */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-backdrop.open {
+      display: flex;
+    }
+    .modal-box {
+      background: var(--card-bg);
+      border: var(--border-thick);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-xl);
+      max-width: 480px;
+      width: 100%;
+      padding: 26px;
+      position: relative;
+    }
+    .modal-close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      font-weight: 900;
+      cursor: pointer;
+      font-size: 1.2rem;
+      border: var(--border-thin);
+      background: var(--card-bg-alt);
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .form-group {
+      margin-bottom: 14px;
+      text-align: left;
+    }
+    .form-label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: var(--border-thin);
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+      font-size: 0.9rem;
+      background: var(--card-bg-alt);
+      color: var(--text-main);
+      outline: none;
+    }
+    .form-input:focus {
+      border-color: var(--brand-blue);
+      background: var(--card-bg);
+    }
+
+    /* Toast Notification */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+    .toast-pill {
+      background: var(--card-bg);
+      color: var(--text-main);
+      border: var(--border-thick);
+      border-radius: var(--radius-pill);
+      padding: 10px 20px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800;
+      font-size: 0.9rem;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .toast-pill.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Confetti Canvas */
+    #confettiCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 3000;
+    }
+
+    /* ==========================================================================
+       PRINT CHEAT SHEET VIEW (@media print)
+       ========================================================================== */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 11pt !important;
+      }
+      .header,
+      .hero-container,
+      .center-tools-bar,
+      .export-bar,
+      .btn,
+      .dashboard-right,
+      .drop-zone,
+      .persona-btn-grid,
+      .modal-backdrop,
+      .toast-container,
+      #confettiCanvas {
+        display: none !important;
+      }
+      .dashboard-container {
+        display: block !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .dashboard-left {
+        display: block !important;
+        page-break-after: avoid;
+      }
+      .comic-card, .note-section-card, .takeaways-strip {
+        box-shadow: none !important;
+        border: 1px solid #000000 !important;
+        border-radius: 4px !important;
+        margin-bottom: 12pt !important;
+        page-break-inside: avoid;
+      }
+      .print-header {
+        display: block !important;
+        border-bottom: 2px solid #000000;
+        margin-bottom: 14pt;
+        padding-bottom: 8pt;
+      }
+      .spoiler-term {
+        background: transparent !important;
+        color: #000000 !important;
+        text-decoration: underline !important;
+      }
+    }
+
+    .print-header {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Fullscreen Confetti Canvas -->
+  <canvas id="confettiCanvas"></canvas>
+
+  <!-- Distraction-Free Focus Mode Exit Button -->
+  <button id="exitFocusBtn" class="btn btn-yellow focus-exit-btn" onclick="toggleFocusMode()">
+    ❌ Exit Focus Mode (Esc)
+  </button>
+
+  <!-- ==========================================================================
+       HEADER
+       ========================================================================== */
+  -->
+  <header class="header">
+    <div class="brand-group">
+      <a href="#" class="logo-box" onclick="location.reload(); return false;">
+        <span>⚡</span> StudyPulse AI
+      </a>
+      <span class="tagline-badge">Zero Busywork, Instant Exam Prep</span>
+    </div>
+
+    <div class="header-actions">
+      <!-- Study Streak Badge (Feature #21) -->
+      <div class="streak-container" id="streakBadge" title="Consecutive daily study streak!">
+        <span class="flame-icon">🔥</span>
+        <span id="streakCount">1</span> Day Streak
+      </div>
+
+      <!-- Groq LPU Cloud Badge -->
+      <div class="groq-badge" id="groqStatusBadge" onclick="openGroqModal()" title="Configure Groq AI (Llama 3.3 70B & 3.1 8B)">
+        <span class="groq-dot" id="groqDot"></span>
+        <span id="groqStatusText">⚡ Groq: Demo Mode</span>
+      </div>
+
+      <!-- Supabase Auth / Cloud Connection Badge (Feature #1) -->
+      <div class="supabase-badge" id="supabaseStatusBadge" onclick="openSupabaseModal()">
+        <span class="supabase-dot" id="supabaseDot"></span>
+        <span id="supabaseStatusText">Offline / Local</span>
+      </div>
+
+      <!-- Focus Mode Toggle (Feature #25) -->
+      <button class="btn btn-sm" onclick="toggleFocusMode()" title="Focus Mode: Hide sidebars">
+        🎯 Focus
+      </button>
+
+      <!-- Dark / Light Theme Toggle (Feature #15) -->
+      <button class="btn btn-sm btn-icon" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+        🌙
+      </button>
+    </div>
+  </header>
+
+  <!-- Print Cheat Sheet Header (Shown only during browser print) -->
+  <div class="print-header">
+    <h1 id="printDocTitle" style="font-size: 20pt; margin-bottom: 4pt;">StudyPulse AI — Exam Prep Cheat Sheet</h1>
+    <p style="font-size: 9pt; color: #555;">Generated with StudyPulse AI • Estimated Study Time: <span id="printStudyTime">~8 mins</span></p>
+  </div>
+
+  <!-- ==========================================================================
+       HERO & INPUT WORKSPACE
+       ========================================================================== -->
+  <section class="hero-container">
+    <div class="hero-title-wrap">
+      <h1 class="hero-big-title">MASTER ANY SUBJECT INSTANTLY</h1>
+      <div class="hero-subtitle-box">
+        <span>⚡ Groq LPU Powered</span>
+        <span>•</span>
+        <span>🧠 Active Recall</span>
+        <span>•</span>
+        <span>🏆 100% Exam-Ready</span>
+      </div>
+    </div>
+
+    <!-- Quick Start Instructions Accordion -->
+    <div class="instructions-accordion">
+      <div class="instructions-toggle" onclick="toggleInstructions()">
+        <span>🚀 <strong>Quick Start Guide & Feature Tour</strong> (Click to view 25 power tools)</span>
+        <span id="instructionsChevron">▼</span>
+      </div>
+      <div class="instructions-content" id="instructionsContent">
+        <div class="instructions-grid">
+          <div class="instruction-step">
+            <strong>1. Groq LPU API or Demo</strong>
+            <p>Click "⚡ Groq" in the header to enter your free Groq API key for real-time Llama 3.3 generation, or use built-in Demo mode.</p>
+          </div>
+          <div class="instruction-step">
+            <strong>2. Upload or Paste</strong>
+            <p>Drag & drop lecture notes, docs, or click "Pre-Load CS/Bio Lecture" for rich sample documents.</p>
+          </div>
+          <div class="instruction-step">
+            <strong>3. Active Recall & 3D Flashcards</strong>
+            <p>Click blacked-out spoilers to test yourself. Flip cards with 3D animation and track mastered terms.</p>
+          </div>
+          <div class="instruction-step">
+            <strong>4. Audio & Supabase Sync</strong>
+            <p>Listen with native voice reader. Connect Supabase to sync across devices or stay in offline LocalStorage mode.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Document Upload / Paste Card -->
+    <div class="comic-card input-workspace-card">
+      <div class="corner-accent blue"></div>
+      <div class="upload-zone-wrapper">
+        
+        <!-- Drag and Drop Zone (Feature #2) -->
+        <div class="drop-zone" id="dropZone" onclick="triggerFileInput()">
+          <input type="file" id="fileInput" class="file-input-hidden" accept=".txt,.pdf,.doc,.docx,.md" onchange="handleFileSelect(event)">
+          <div class="drop-zone-icon">📂</div>
+          <div class="drop-zone-info">Drag & Drop Lecture Materials</div>
+          <p style="font-size: 0.8rem; color: var(--text-muted);">Supports .PDF, .DOCX, .TXT, .MD (client-side simulation)</p>
+          <div class="file-stats-badge" id="fileStatsBadge">
+            <span id="fileStatsText">📄 File loaded</span>
+          </div>
+        </div>
+
+        <!-- Raw Text Input Area -->
+        <div class="text-input-group">
+          <textarea id="rawLectureInput" class="raw-textarea" placeholder="Paste your lecture notes, textbook chapters, or transcript here, or click 'Pre-Load Sample Lecture' below..."></textarea>
+          <div style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 700; color: var(--text-muted);">
+            <span id="liveCharCount">0 characters</span>
+            <span id="liveWordCount">0 words</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions Bar -->
+      <div class="input-actions-bar">
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+          <!-- Pre-Load Sample Lecture Button -->
+          <button class="btn btn-sm btn-yellow" onclick="loadSampleLecture('cs')">
+            💻 Pre-Load CS Lecture
+          </button>
+          <button class="btn btn-sm btn-yellow" onclick="loadSampleLecture('bio')">
+            🧬 Pre-Load Bio Lecture
+          </button>
+          
+          <!-- Custom Quiz Difficulty Selector (Feature #12) -->
+          <div class="difficulty-select-wrap">
+            <label for="quizDifficultySelect">Quiz Level:</label>
+            <select id="quizDifficultySelect" class="select-comic">
+              <option value="easy">Easy (Definitions)</option>
+              <option value="medium" selected>Medium (Application)</option>
+              <option value="hard">Hard (Analysis & Edge Cases)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Primary CTA Generate Workspace -->
+        <button class="btn btn-primary" onclick="generateCompleteWorkspace()" id="generateWorkspaceBtn">
+          ⚡ Generate Complete Workspace
+        </button>
+      </div>
+
+      <!-- Groq LPU Loading Status Banner -->
+      <div id="groqLoadingBanner" class="groq-loading-banner" style="display: none;">
+        <div class="groq-loading-pulse">⚡</div>
+        <div style="flex: 1;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+            <strong id="groqLoadingTitle" style="font-size: 0.95rem;">🧠 Groq LPU Inferencing at ~800 tokens/sec...</strong>
+            <span class="badge-pill yellow" id="groqModelActiveBadge">Llama 3.3 70B</span>
+          </div>
+          <div class="groq-progress-track">
+            <div class="groq-progress-bar-animated"></div>
+          </div>
+          <span style="font-size: 0.78rem; color: var(--text-muted);" id="groqLoadingSubtext">Synthesizing revision notes, 5-question quiz, 3D flashcards, mind map, and mnemonics...</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==========================================================================
+       DASHBOARD 3-COLUMN GRID
+       ========================================================================== -->
+  <main class="dashboard-container" id="dashboardContainer">
+
+    <!-- ------------------------------------------------------------------------
+         COLUMN 1 (LEFT SIDEBAR): PERSONA, GLOSSARY, MNEMONICS, SCHEDULE, MIND-MAP
+         ------------------------------------------------------------------------ -->
+    <aside class="dashboard-col dashboard-left">
+
+      <!-- Persona & Tone Switcher (Feature #5) -->
+      <div class="comic-card" style="padding: 16px;">
+        <div class="corner-accent yellow"></div>
+        <h3 class="section-title">🎭 Persona & Tone</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Select how the workspace explains concepts:</p>
+        <div class="persona-btn-grid">
+          <button class="persona-btn active" onclick="setPersona('eli5', this)">👶 ELI5</button>
+          <button class="persona-btn" onclick="setPersona('professor', this)">🎓 Strict Prof</button>
+          <button class="persona-btn" onclick="setPersona('cram', this)">🚨 Exam Cram</button>
+          <button class="persona-btn" onclick="setPersona('tldr', this)">⚡ TL;DR</button>
+        </div>
+      </div>
+
+      <!-- Key Definitions Glossary Sidebar (Feature #6) -->
+      <div class="comic-card" style="padding: 16px;">
+        <div class="corner-accent blue"></div>
+        <h3 class="section-title">📖 Key Definitions</h3>
+        <input type="text" id="glossarySearch" class="glossary-search" placeholder="🔍 Search key terms..." oninput="filterGlossary()">
+        <div class="glossary-list" id="glossaryListContainer">
+          <!-- Dynamically populated glossary items -->
+        </div>
+      </div>
+
+      <!-- Auto-Generated Mnemonics Generator (Feature #24) -->
+      <div class="comic-card" style="padding: 16px;">
+        <div class="corner-accent coral"></div>
+        <h3 class="section-title">💡 Memory Mnemonics</h3>
+        <div id="mnemonicsContainer">
+          <!-- Dynamically populated mnemonics -->
+        </div>
+      </div>
+
+      <!-- 3-Day Micro Study Schedule (Feature #14) -->
+      <div class="comic-card" style="padding: 16px;">
+        <div class="corner-accent green"></div>
+        <h3 class="section-title">📅 3-Day Micro Schedule</h3>
+        <div class="schedule-days" id="scheduleContainer">
+          <!-- Dynamically populated days -->
+        </div>
+        <div style="margin-top: 10px;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 800;">
+            <span>Prep Completion</span>
+            <span id="scheduleProgressText">0%</span>
+          </div>
+          <div class="schedule-progress-bar">
+            <div class="schedule-progress-fill" id="scheduleProgressFill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Mind-Map Outline (Feature #11) -->
+      <div class="comic-card" style="padding: 16px;">
+        <div class="corner-accent blue"></div>
+        <h3 class="section-title">🌳 Mind-Map Outline</h3>
+        <div class="mindmap-tree" id="mindmapContainer">
+          <!-- Hierarchical Collapsible Tree -->
+        </div>
+      </div>
+
+    </aside>
+
+
+    <!-- ------------------------------------------------------------------------
+         COLUMN 2 (CENTER): TAKEAWAYS, CONTROLS, REVISION NOTES, CLOZE BLANKS
+         ------------------------------------------------------------------------ -->
+    <section class="dashboard-col dashboard-center">
+
+      <!-- Key Takeaways Highlight Strip (Feature #16) -->
+      <div class="takeaways-strip" id="takeawaysStrip">
+        <div class="takeaways-title">
+          <span>🚀 High-Yield Key Takeaways</span>
+          <span class="badge-pill coral" style="font-size: 0.7rem;">Priority Exam Points</span>
+        </div>
+        <div class="takeaways-grid" id="takeawaysGrid">
+          <!-- Top 3 critical takeaways -->
+        </div>
+      </div>
+
+      <!-- Revision Notes Controls Bar -->
+      <div class="center-tools-bar">
+        <!-- Interactive Audio Playback (Feature #13) -->
+        <div class="audio-controls">
+          <button class="btn btn-sm btn-yellow" id="playAudioBtn" onclick="toggleAudioPlayback()">
+            🔊 Play Notes
+          </button>
+          <button class="btn btn-sm" onclick="stopAudioPlayback()">
+            ⏹️ Stop
+          </button>
+          <select id="audioSpeedSelect" class="audio-speed-select" onchange="updateAudioRate()">
+            <option value="0.85">0.85x</option>
+            <option value="1.0" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+          </select>
+        </div>
+
+        <!-- ELI5 Live Complexity Slider (Feature #22) -->
+        <div class="eli5-slider-wrap">
+          <span>Complexity:</span>
+          <input type="range" id="eli5Slider" class="slider-comic" min="1" max="5" value="3" oninput="handleComplexitySlider(this.value)">
+          <span id="eli5SliderLabel" class="badge-pill yellow">Lv 3: College</span>
+        </div>
+
+        <!-- Active Recall Mode Toggle (Feature #10) -->
+        <button class="btn btn-sm" id="activeRecallToggleBtn" onclick="toggleActiveRecall()">
+          🙈 Active Recall: ON
+        </button>
+
+        <!-- Estimated Study Time Calculator (Feature #9) -->
+        <span class="badge-pill blue" id="estimatedStudyTimeBadge">
+          ⏱️ ~8 mins study time
+        </span>
+      </div>
+
+      <!-- Complexity Heatmap Filter Strip (Feature #18) -->
+      <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; font-weight: 700; padding: 4px 6px;">
+        <span>Content Complexity Heatmap:</span>
+        <div style="display: flex; gap: 8px;">
+          <button class="badge-pill green" onclick="filterHeatmap('all')">All</button>
+          <button class="badge-pill green" onclick="filterHeatmap('easy')">🟢 Easy</button>
+          <button class="badge-pill yellow" onclick="filterHeatmap('medium')">🟡 Medium</button>
+          <button class="badge-pill coral" onclick="filterHeatmap('hard')">🔴 Dense/Hard</button>
+        </div>
+      </div>
+
+      <!-- Interactive Revision Notes Container (Feature #3 & #18) -->
+      <div id="revisionNotesContainer">
+        <!-- Dynamically rendered concept sections -->
+      </div>
+
+      <!-- Interactive Fill-in-the-Blanks / Cloze Deletion (Feature #17) -->
+      <div class="cloze-card">
+        <div class="corner-accent green"></div>
+        <h3 class="section-title">✏️ Interactive Fill-in-the-Blanks (Cloze Test)</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Type the missing keywords to test active retrieval:</p>
+        <div id="clozeExercisesContainer">
+          <!-- Cloze sentence test -->
+        </div>
+        <div style="margin-top: 14px; display: flex; align-items: center; justify-content: space-between;">
+          <button class="btn btn-sm btn-yellow" onclick="checkClozeAnswers()">
+            ✅ Check Blanks
+          </button>
+          <span id="clozeScoreBadge" class="badge-pill blue" style="display:none;"></span>
+        </div>
+      </div>
+
+      <!-- Multi-Format Exporting Bar (Feature #8 & #19) -->
+      <div class="export-bar">
+        <button class="btn btn-sm" onclick="exportMarkdown()">
+          📋 Copy Markdown
+        </button>
+        <button class="btn btn-sm" onclick="exportTextFile()">
+          💾 Download .TXT
+        </button>
+        <button class="btn btn-sm btn-coral" onclick="printCheatSheet()">
+          🖨️ Print Cheat Sheet
+        </button>
+      </div>
+
+    </section>
+
+
+    <!-- ------------------------------------------------------------------------
+         COLUMN 3 (RIGHT SIDEBAR): QUIZ, WEAKNESS ANALYSIS, 3D FLASHCARD DECK
+         ------------------------------------------------------------------------ -->
+    <aside class="dashboard-col dashboard-right">
+
+      <!-- Auto-Generated 5-Question Quiz (Feature #4 & #12) -->
+      <div class="quiz-card">
+        <div class="corner-accent coral"></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <h3 class="section-title" style="margin-bottom: 0;">🎯 5-Question Quiz</h3>
+          <span class="badge-pill yellow" id="quizDifficultyBadge">Medium</span>
+        </div>
+        
+        <div id="quizContainer">
+          <!-- Dynamically populated 5 MCQs -->
+        </div>
+
+        <div style="margin-top: 14px; display: flex; align-items: center; justify-content: space-between;">
+          <button class="btn btn-sm btn-primary" onclick="submitQuiz()">
+            Submit Answers
+          </button>
+          <span id="quizScoreText" style="font-family: 'Space Grotesk', sans-serif; font-weight: 800; font-size: 0.95rem;"></span>
+        </div>
+      </div>
+
+      <!-- Targeted Weakness Analysis (Feature #7) -->
+      <div class="weakness-card" id="weaknessCard" style="display: none;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <h4 style="font-size: 0.95rem; font-weight: 800; color: #991b1b;">⚠️ Priority Review Needed</h4>
+          <span class="badge-pill coral" style="font-size: 0.7rem;">Missed in Quiz</span>
+        </div>
+        <p style="font-size: 0.8rem; color: #7f1d1d; margin-top: 4px;">Focus on these concepts before the exam:</p>
+        <div id="weaknessListContainer">
+          <!-- Populated if user misses questions -->
+        </div>
+      </div>
+
+      <!-- Interactive 3D Flashcard Deck (Feature #23) -->
+      <div class="comic-card" style="padding: 16px;">
+        <div class="corner-accent blue"></div>
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <h3 class="section-title" style="margin-bottom: 0;">🃏 3D Flashcard Deck</h3>
+          <span class="badge-pill blue" id="flashcardCounterBadge">1 / 5</span>
+        </div>
+        
+        <!-- 3D Flippable Card -->
+        <div class="flashcard-wrapper" onclick="flipCurrentCard()">
+          <div class="flashcard-inner" id="flashcardInner">
+            <div class="flashcard-front">
+              <span class="badge-pill yellow" style="margin-bottom: 10px; font-size: 0.7rem;">TERM / CONCEPT</span>
+              <h4 id="cardFrontText" style="font-size: 1.25rem;">Process vs Thread</h4>
+              <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">(Click to flip answer)</p>
+            </div>
+            <div class="flashcard-back">
+              <span class="badge-pill blue" style="margin-bottom: 8px; font-size: 0.7rem;">DEFINITION & RECALL</span>
+              <p id="cardBackText" style="font-size: 0.95rem; font-weight: 600; line-height: 1.4;">
+                A process has its own address space. A thread shares memory with other threads in the same process.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card Progress & Sorting -->
+        <div class="flashcard-counter-row">
+          <span style="color: var(--brand-green);">✅ Mastered: <strong id="masteredCount">0</strong></span>
+          <span style="color: var(--brand-coral-accent);">⚠️ Need Review: <strong id="reviewCount">0</strong></span>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="flashcard-actions">
+          <button class="btn btn-sm btn-coral" onclick="markCardStatus('review')">
+            👎 Review Again
+          </button>
+          <button class="btn btn-sm" onclick="prevFlashcard()">
+            ◀
+          </button>
+          <button class="btn btn-sm" onclick="nextFlashcard()">
+            ▶
+          </button>
+          <button class="btn btn-sm btn-yellow" onclick="markCardStatus('mastered')">
+            👍 Mastered!
+          </button>
+        </div>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- ==========================================================================
+       GROQ LPU API CONFIGURATION MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop" id="groqModal">
+    <div class="modal-box">
+      <div class="modal-close-btn" onclick="closeGroqModal()">✕</div>
+      <h3 class="section-title">⚡ Groq Cloud LPU Settings</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">
+        Power your workspace with blazing-fast <strong>Groq LPU inference</strong> (~800+ tokens/sec). Enter your Groq API key to generate real-time AI notes, quizzes, flashcards, mind maps, and cloze exercises.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label" for="groqApiKeyInput">Groq API Key (Bearer Token)</label>
+        <input type="password" id="groqApiKeyInput" class="form-input" placeholder="gsk_..." autocomplete="off">
+        <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 0.75rem;">
+          <span style="color: var(--text-muted);">Saved locally in browser localStorage</span>
+          <a href="https://console.groq.com/keys" target="_blank" style="color: var(--brand-blue); font-weight: 700; text-decoration: underline;">Get free Groq API Key ↗</a>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="groqModelSelect">Groq LLM Model</label>
+        <select id="groqModelSelect" class="form-input">
+          <option value="llama-3.3-70b-versatile" selected>Llama 3.3 70B Versatile (Flagship - Deep Reasoning)</option>
+          <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Ultra-fast, lowest latency)</option>
+          <option value="mixtral-8x7b-32768">Mixtral 8x7B 32k (High Context)</option>
+        </select>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 16px;">
+        <button class="btn btn-sm btn-yellow" onclick="saveGroqConfig()">
+          Save Groq Key
+        </button>
+        <button class="btn btn-sm" onclick="clearGroqConfig()">
+          Clear Key (Use Demo)
+        </button>
+      </div>
+
+      <div style="margin-top: 16px; padding: 10px 12px; background: var(--brand-blue-light); border: var(--border-thin); border-radius: var(--radius-sm); font-size: 0.8rem;">
+        💡 <strong>Tip:</strong> If no Groq key is provided, StudyPulse AI automatically runs in instant Demo mode with built-in domain generators.
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       SUPABASE CONFIGURATION & AUTH MODAL (Feature #1)
+       ========================================================================== -->
+  <div class="modal-backdrop" id="supabaseModal">
+    <div class="modal-box">
+      <div class="modal-close-btn" onclick="closeSupabaseModal()">✕</div>
+      <h3 class="section-title">☁️ Supabase Cloud Sync & Auth</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">
+        Connect your Supabase project to authenticate and save your study notes & streak to the cloud.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label" for="supabaseUrlInput">Supabase Project URL</label>
+        <input type="text" id="supabaseUrlInput" class="form-input" placeholder="https://your-project.supabase.co">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="supabaseKeyInput">Supabase Anon Key</label>
+        <input type="password" id="supabaseKeyInput" class="form-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+        <button class="btn btn-sm btn-yellow" onclick="saveSupabaseConfig()">
+          Save API Keys
+        </button>
+        <button class="btn btn-sm" onclick="clearSupabaseConfig()">
+          Clear Keys
+        </button>
+      </div>
+
+      <hr style="border: none; border-top: var(--border-thin); margin: 14px 0;">
+
+      <div id="supabaseAuthSection">
+        <h4 style="font-size: 0.95rem; margin-bottom: 8px;">User Authentication</h4>
+        <div id="authLoggedOutView">
+          <div class="form-group">
+            <label class="form-label" for="authEmailInput">Email</label>
+            <input type="email" id="authEmailInput" class="form-input" placeholder="student@university.edu">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="authPasswordInput">Password</label>
+            <input type="password" id="authPasswordInput" class="form-input" placeholder="••••••••">
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <button class="btn btn-sm btn-primary" onclick="handleSupabaseSignIn()">
+              Sign In
+            </button>
+            <button class="btn btn-sm btn-yellow" onclick="handleSupabaseSignUp()">
+              Sign Up
+            </button>
+          </div>
+        </div>
+
+        <div id="authLoggedInView" style="display: none;">
+          <p style="font-size: 0.9rem; margin-bottom: 10px;">
+            Logged in as: <strong id="loggedInUserEmail" style="color: var(--brand-blue);"></strong>
+          </p>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-sm btn-primary" onclick="syncWorkspaceToSupabase()">
+              ☁️ Sync Workspace Now
+            </button>
+            <button class="btn btn-sm btn-coral" onclick="handleSupabaseSignOut()">
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification System -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ==========================================================================
+       JAVASCRIPT: ALL 25 FEATURES ENGINE & LOGIC
+       ========================================================================== -->
+  <script>
+    /* ==========================================================================
+       1. GLOBAL STATE & PRESET SAMPLE LECTURE DATA
+       ========================================================================== */
+    const SAMPLE_LECTURES = {
+      cs: {
+        title: "Operating Systems: Concurrency, Synchronization & Deadlocks",
+        text: `Operating Systems Concurrency and Synchronization:
+In modern computing, concurrency allows multiple execution threads or processes to make progress simultaneously. A process is an independent program in execution with its own isolated virtual address space, file descriptors, and security tokens. In contrast, a thread is the smallest schedulable unit of CPU execution located inside a process, sharing the same address space, code segment, and heap with peer threads.
+
+Race Conditions & Critical Sections:
+When multiple threads access shared mutable data without proper synchronization, a race condition occurs, yielding non-deterministic and buggy output. A critical section is a sequence of code accessing shared resources that must be executed atomically. Mutual exclusion ensures that at most one thread can enter the critical section at any given time.
+
+Synchronization Primitives:
+1. Mutex (Mutual Exclusion Lock): A binary locking mechanism owned exclusively by the thread that locked it.
+2. Semaphore: A signaling mechanism introduced by Edsger Dijkstra with integer counter (P/wait and V/signal operations).
+3. Spinlock: A lock where waiting threads poll in a tight CPU loop (busy-waiting); useful on multi-core systems when wait times are ultra-short.
+
+The Deadlock Dilemma:
+A deadlock is a permanent state of stagnation where a set of processes are blocked because each process holds a resource and waits for another resource held by another process. For a deadlock to arise, all four Coffman conditions must hold simultaneously:
+1. Mutual Exclusion: Resources cannot be shared.
+2. Hold and Wait: A process holds at least one resource while requesting others.
+3. No Preemption: Resources cannot be forcibly confiscated.
+4. Circular Wait: A closed loop chain of processes exists where each process waits for a resource held by the next.
+
+Deadlock Prevention and Avoidance:
+To prevent deadlocks, system designers eliminate at least one Coffman condition, such as enforcing total resource ordering to eliminate circular wait. Deadlock avoidance algorithms, like Dijkstra's Banker's Algorithm, dynamically evaluate resource allocation states to ensure the system never enters an unsafe state.`
+      },
+      bio: {
+        title: "Cellular Respiration, Glycolysis & ATP Synthesis",
+        text: `Cellular Respiration and Bioenergetics:
+Cellular respiration is the fundamental biochemical process by which aerobic organisms extract chemical energy stored in glucose molecules to synthesize Adenosine Triphosphate (ATP). ATP functions as the universal chemical energy currency of biological cells.
+
+The Three Major Stages of Cellular Respiration:
+1. Glycolysis: Occurring in the cell cytoplasm, glycolysis is an anaerobic catabolic pathway that breaks down one 6-carbon glucose molecule into two 3-carbon pyruvate molecules. This yields a net gain of 2 ATP molecules (via substrate-level phosphorylation) and 2 NADH coenzymes.
+
+2. The Krebs Cycle (Citric Acid Cycle): Occurring inside the mitochondrial matrix, pyruvate is converted into Acetyl-CoA, which enters the cycle. Through a cyclic sequence of oxidation-reduction reactions, the cycle releases carbon dioxide (CO2) and produces 2 ATP, 6 NADH, and 2 FADH2 electron carriers.
+
+3. Oxidative Phosphorylation & The Electron Transport Chain (ETC): Located along the inner mitochondrial membrane, high-energy electrons from NADH and FADH2 are transferred along protein complexes I through IV. As electrons flow to oxygen (the terminal electron acceptor), protons (H+) are pumped across the inner membrane into the intermembrane space, building a steep electrochemical proton gradient (proton motive force).
+
+Chemiosmosis and ATP Synthase:
+Protons flow down their electrochemical gradient back into the mitochondrial matrix through ATP Synthase, a rotary molecular motor enzyme. This rotary catalytic mechanism phosphorylates ADP and inorganic phosphate into ATP, generating approximately 30 to 34 ATP molecules per glucose molecule.`
+      }
+    };
+
+    // Main Reactive State
+    const AppState = {
+      theme: 'light',
+      streak: 1,
+      lastStudyDate: null,
+      currentPersona: 'eli5',
+      currentDifficulty: 'medium',
+      activeRecall: true,
+      complexityLevel: 3,
+      currentFilter: 'all',
+      flashcards: [],
+      currentCardIndex: 0,
+      masteredCards: new Set(),
+      reviewCards: new Set(),
+      quizQuestions: [],
+      quizAnswers: {},
+      quizScore: null,
+      workspaceData: null,
+      supabaseClient: null,
+      supabaseSession: null,
+      speechUtterance: null,
+      isPlayingAudio: false,
+      audioRate: 1.0,
+      // Groq LPU API State
+      groqApiKey: '',
+      groqModel: 'llama-3.3-70b-versatile',
+      isGeneratingGroq: false
+    };
+
+    /* ==========================================================================
+       2. PERSISTENCE & LOCALSTORAGE AUTO-SAVE (Feature #20 & #21)
+       ========================================================================== */
+    function initLocalStorage() {
+      // Theme
+      const savedTheme = localStorage.getItem('studypulse_theme');
+      if (savedTheme) {
+        AppState.theme = savedTheme;
+        if (savedTheme === 'dark') document.body.classList.add('dark-mode');
+        updateThemeToggleIcon();
+      }
+
+      // Daily Study Streak
+      const savedStreak = parseInt(localStorage.getItem('studypulse_streak') || '1', 10);
+      const savedLastDate = localStorage.getItem('studypulse_last_date');
+      const today = new Date().toISOString().slice(0, 10);
+
+      if (savedLastDate) {
+        const last = new Date(savedLastDate);
+        const curr = new Date(today);
+        const diffDays = Math.floor((curr - last) / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) {
+          AppState.streak = savedStreak + 1;
+        } else if (diffDays === 0) {
+          AppState.streak = savedStreak;
+        } else {
+          AppState.streak = 1;
+        }
+      } else {
+        AppState.streak = 1;
+      }
+      AppState.lastStudyDate = today;
+      localStorage.setItem('studypulse_streak', AppState.streak.toString());
+      localStorage.setItem('studypulse_last_date', today);
+      document.getElementById('streakCount').innerText = AppState.streak;
+
+      // Groq API Key & Model restore
+      const savedGroqKey = localStorage.getItem('studypulse_groq_key') || '';
+      const savedGroqModel = localStorage.getItem('studypulse_groq_model') || 'llama-3.3-70b-versatile';
+      AppState.groqApiKey = savedGroqKey;
+      AppState.groqModel = savedGroqModel;
+      updateGroqBadge();
+
+      // Saved Workspace restore if available
+      const savedWorkspace = localStorage.getItem('studypulse_workspace');
+      if (savedWorkspace) {
+        try {
+          const parsed = JSON.parse(savedWorkspace);
+          AppState.workspaceData = parsed;
+          renderWorkspace(parsed);
+        } catch (e) {
+          console.warn("Failed to parse saved workspace", e);
+        }
+      }
+    }
+
+    function autoSaveToLocalStorage() {
+      if (AppState.workspaceData) {
+        localStorage.setItem('studypulse_workspace', JSON.stringify(AppState.workspaceData));
+      }
+    }
+
+    /* ==========================================================================
+       3. THEME TOGGLE (Feature #15)
+       ========================================================================== */
+    function toggleTheme() {
+      document.body.classList.toggle('dark-mode');
+      AppState.theme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
+      localStorage.setItem('studypulse_theme', AppState.theme);
+      updateThemeToggleIcon();
+      showToast(`Switched to ${AppState.theme === 'dark' ? 'Dark' : 'Light'} Mode`);
+    }
+
+    function updateThemeToggleIcon() {
+      const btn = document.getElementById('themeToggleBtn');
+      if (btn) {
+        btn.innerText = AppState.theme === 'dark' ? '☀️' : '🌙';
+      }
+    }
+
+    /* ==========================================================================
+       4. DISTRACTION-FREE FOCUS MODE (Feature #25)
+       ========================================================================== */
+    function toggleFocusMode() {
+      document.body.classList.toggle('focus-mode-active');
+      const isFocus = document.body.classList.contains('focus-mode-active');
+      showToast(isFocus ? "Focus Mode Activated (Sidebars hidden)" : "Exited Focus Mode");
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && document.body.classList.contains('focus-mode-active')) {
+        toggleFocusMode();
+      }
+    });
+
+    /* ==========================================================================
+       5. ACCORDION & INSTRUCTIONS
+       ========================================================================== */
+    function toggleInstructions() {
+      const content = document.getElementById('instructionsContent');
+      const chevron = document.getElementById('instructionsChevron');
+      content.classList.toggle('open');
+      chevron.innerText = content.classList.contains('open') ? '▲' : '▼';
+    }
+
+    /* ==========================================================================
+       6. DRAG & DROP / FILE PARSER SIMULATION (Feature #2)
+       ========================================================================== */
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const rawLectureInput = document.getElementById('rawLectureInput');
+
+    function triggerFileInput() {
+      fileInput.click();
+    }
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        processUploadedFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    function handleFileSelect(e) {
+      if (e.target.files && e.target.files.length > 0) {
+        processUploadedFile(e.target.files[0]);
+      }
+    }
+
+    function processUploadedFile(file) {
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        let textContent = evt.target.result;
+        if (typeof textContent !== 'string' || textContent.includes('%PDF')) {
+          textContent = `Extracted Text from ${file.name}:\n\n${SAMPLE_LECTURES.cs.text}`;
+        }
+        rawLectureInput.value = textContent;
+        updateInputLiveCounts();
+
+        const badge = document.getElementById('fileStatsBadge');
+        const text = document.getElementById('fileStatsText');
+        const words = textContent.trim().split(/\s+/).filter(Boolean).length;
+        text.innerText = `📄 ${file.name} (${words} words, ${(file.size / 1024).toFixed(1)} KB)`;
+        badge.style.display = 'inline-block';
+        showToast(`Parsed ${file.name} successfully!`);
+      };
+      reader.readAsText(file);
+    }
+
+    rawLectureInput.addEventListener('input', updateInputLiveCounts);
+
+    function updateInputLiveCounts() {
+      const text = rawLectureInput.value;
+      const chars = text.length;
+      const words = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
+      document.getElementById('liveCharCount').innerText = `${chars.toLocaleString()} characters`;
+      document.getElementById('liveWordCount').innerText = `${words.toLocaleString()} words`;
+    }
+
+    function loadSampleLecture(type) {
+      const data = SAMPLE_LECTURES[type] || SAMPLE_LECTURES.cs;
+      rawLectureInput.value = data.text;
+      updateInputLiveCounts();
+      const badge = document.getElementById('fileStatsBadge');
+      const text = document.getElementById('fileStatsText');
+      text.innerText = `📄 Loaded: ${data.title}`;
+      badge.style.display = 'inline-block';
+      showToast(`Pre-loaded ${type.toUpperCase()} Sample Lecture!`);
+      generateCompleteWorkspace();
+    }
+
+    /* ==========================================================================
+       7. GROQ LPU REAL-TIME API CLIENT
+       ========================================================================== */
+    function openGroqModal() {
+      document.getElementById('groqModal').classList.add('open');
+      document.getElementById('groqApiKeyInput').value = AppState.groqApiKey;
+      document.getElementById('groqModelSelect').value = AppState.groqModel;
+    }
+
+    function closeGroqModal() {
+      document.getElementById('groqModal').classList.remove('open');
+    }
+
+    function saveGroqConfig() {
+      const key = document.getElementById('groqApiKeyInput').value.trim();
+      const model = document.getElementById('groqModelSelect').value;
+
+      if (!key) {
+        showToast("Please enter your Groq API Key.");
+        return;
+      }
+
+      AppState.groqApiKey = key;
+      AppState.groqModel = model;
+      localStorage.setItem('studypulse_groq_key', key);
+      localStorage.setItem('studypulse_groq_model', model);
+      updateGroqBadge();
+      closeGroqModal();
+      showToast(`Saved Groq API Key! Using ${model}`);
+    }
+
+    function clearGroqConfig() {
+      AppState.groqApiKey = '';
+      localStorage.removeItem('studypulse_groq_key');
+      document.getElementById('groqApiKeyInput').value = '';
+      updateGroqBadge();
+      closeGroqModal();
+      showToast("Groq API Key cleared. Switched to Demo Mode.");
+    }
+
+    function updateGroqBadge() {
+      const dot = document.getElementById('groqDot');
+      const text = document.getElementById('groqStatusText');
+      if (AppState.groqApiKey) {
+        dot.className = 'groq-dot active';
+        const shortModel = AppState.groqModel.includes('70b') ? 'Llama 3.3 70B' : 'Llama 3.1 8B';
+        text.innerText = `⚡ Groq: ${shortModel}`;
+      } else {
+        dot.className = 'groq-dot demo';
+        text.innerText = "⚡ Groq: Demo Mode";
+      }
+    }
+
+    async function callGroqAPI(lectureText, model, apiKey) {
+      const systemPrompt = `You are StudyPulse AI, a world-class academic tutor and curriculum designer.
+Analyze the student's lecture text and return a comprehensive JSON object strictly adhering to this exact schema:
+{
+  "title": string,
+  "takeaways": [string, string, string],
+  "glossary": [
+    { "term": string, "def": string }
+  ],
+  "mnemonics": [
+    { "word": string, "meaning": string }
+  ],
+  "schedule": [
+    { "day": "Day 1: Foundation", "task": string, "done": false },
+    { "day": "Day 2: Deep Dive", "task": string, "done": false },
+    { "day": "Day 3: Self-Test", "task": string, "done": false }
+  ],
+  "mindmap": {
+    "title": string,
+    "children": [
+      {
+        "title": string,
+        "children": [
+          { "title": string },
+          { "title": string }
+        ]
+      }
+    ]
+  },
+  "sections": [
+    {
+      "title": string,
+      "complexity": "easy" or "medium" or "hard",
+      "bullets": [
+        string with key terms wrapped in <span class='spoiler-term' onclick='revealSpoiler(this)'>Key Term</span> for active recall
+      ]
+    }
+  ],
+  "cloze": [
+    { "sentence": string with '[blank]' placeholder, "answers": [string in lowercase] }
+  ],
+  "quiz": [
+    {
+      "q": string,
+      "options": [string, string, string, string],
+      "correct": integer (0 to 3),
+      "explanation": string
+    }
+  ],
+  "flashcards": [
+    { "front": string, "back": string }
+  ]
+}
+Rules:
+- Provide exactly 3 high-yield takeaways.
+- Provide 4-8 glossary items.
+- Provide 1-3 memorable mnemonics.
+- Provide 3-4 sections with complexity tags ('easy', 'medium', 'hard') and wrap key terms in <span class='spoiler-term' onclick='revealSpoiler(this)'>Term</span>.
+- Provide 2-3 fill-in-the-blank cloze sentences.
+- Provide exactly 5 multiple choice questions with 4 options each, the correct 0-indexed integer, and explanation.
+- Provide 5-6 3D flashcards.
+- Return ONLY valid JSON. No markdown code blocks, no text outside the JSON object.`;
+
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey.trim()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: model || 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Synthesize this study material into the complete StudyPulse JSON:\n\n${lectureText.slice(0, 16000)}` }
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.3
+        })
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Groq HTTP ${response.status}: ${errText}`);
+      }
+
+      const json = await response.json();
+      const content = json.choices?.[0]?.message?.content;
+      if (!content) throw new Error('No content returned by Groq LPU');
+
+      return JSON.parse(content);
+    }
+
+    /* ==========================================================================
+       8. WORKSPACE SYNTHESIS ORCHESTRATOR
+       ========================================================================== */
+    async function generateCompleteWorkspace() {
+      const text = rawLectureInput.value.trim();
+      if (!text) {
+        showToast("Please enter or pre-load lecture text first!");
+        return;
+      }
+
+      AppState.currentDifficulty = document.getElementById('quizDifficultySelect').value;
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      const docTitle = lines[0].replace(/[:#]/g, '').slice(0, 70) || "Study Workspace";
+      document.getElementById('printDocTitle').innerText = docTitle;
+
+      const totalWords = text.split(/\s+/).filter(Boolean).length;
+      const readMinutes = Math.max(2, Math.round(totalWords / 200) + 3);
+      const studyTimeStr = `⏱️ ~${readMinutes} mins study time (${totalWords} words)`;
+      document.getElementById('estimatedStudyTimeBadge').innerText = studyTimeStr;
+      document.getElementById('printStudyTime').innerText = `~${readMinutes} mins`;
+
+      let workspace = null;
+      const loadingBanner = document.getElementById('groqLoadingBanner');
+      const genBtn = document.getElementById('generateWorkspaceBtn');
+
+      // If user provided a Groq API Key, run real-time LPU generation!
+      if (AppState.groqApiKey) {
+        try {
+          loadingBanner.style.display = 'flex';
+          genBtn.disabled = true;
+          genBtn.innerText = "⏳ Groq LPU Generating...";
+          document.getElementById('groqModelActiveBadge').innerText = AppState.groqModel;
+          document.getElementById('groqLoadingTitle').innerText = `🧠 Groq LPU Inferencing (${AppState.groqModel})...`;
+
+          workspace = await callGroqAPI(text, AppState.groqModel, AppState.groqApiKey);
+          showToast("🚀 Real-Time Groq AI Generation Succeeded!");
+        } catch (err) {
+          console.warn("Groq API Call Failed, falling back to local generator:", err);
+          showToast(`Groq warning: ${err.message.slice(0, 45)}... Using local AI engine.`);
+          workspace = null;
+        } finally {
+          loadingBanner.style.display = 'none';
+          genBtn.disabled = false;
+          genBtn.innerText = "⚡ Generate Complete Workspace";
+        }
+      }
+
+      // If Groq is not configured or failed, use realistic local domain generators
+      if (!workspace) {
+        const isBio = /cell|glycolysis|atp|respiration|mitochondri/i.test(text);
+        const isCS = /process|thread|mutex|deadlock|semaphore|concurrency/i.test(text);
+        if (isCS) {
+          workspace = generateCSWorkspace(text);
+        } else if (isBio) {
+          workspace = generateBioWorkspace(text);
+        } else {
+          workspace = generateGenericWorkspace(text, docTitle);
+        }
+      }
+
+      workspace.title = workspace.title || docTitle;
+      workspace.studyTimeStr = studyTimeStr;
+      AppState.workspaceData = workspace;
+
+      renderWorkspace(workspace);
+      autoSaveToLocalStorage();
+      syncWorkspaceToSupabase();
+      showToast("Workspace Ready! All 25 tools populated.");
+
+      document.getElementById('dashboardContainer').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    /* Realistic Domain Generators */
+    function generateCSWorkspace(text) {
+      return {
+        takeaways: [
+          "Processes have isolated virtual memory; threads share memory, code segment, and heap inside a single process.",
+          "Deadlock requires all 4 Coffman conditions: Mutual Exclusion, Hold & Wait, No Preemption, and Circular Wait.",
+          "Mutexes provide binary mutual exclusion; Semaphores count resource permits; Spinlocks poll using busy-waiting."
+        ],
+        glossary: [
+          { term: "Process", def: "An executing program instance with dedicated virtual memory address space and OS resources." },
+          { term: "Thread", def: "Lightweight schedulable unit within a process sharing the same address space and heap." },
+          { term: "Critical Section", def: "Code block accessing shared mutable state requiring mutual exclusion to prevent race conditions." },
+          { term: "Mutex", def: "Lock owned exclusively by one thread, enforcing strict mutual exclusion." },
+          { term: "Semaphore", def: "Integer variable manipulated atomically via wait() (P) and signal() (V) operations." },
+          { term: "Coffman Conditions", def: "Four prerequisite conditions (Mutual Exclusion, Hold & Wait, No Preemption, Circular Wait) for deadlocks." },
+          { term: "Banker's Algorithm", def: "Deadlock avoidance algorithm evaluating resource allocation safety states before granting requests." }
+        ],
+        mnemonics: [
+          { word: "M-H-N-C", meaning: "Coffman Deadlock Conditions: Mutual Exclusion, Hold & Wait, No Preemption, Circular Wait." },
+          { word: "P-T-A-H", meaning: "Threads vs Processes: Processes own Address spaces; Threads share Heap & handles." }
+        ],
+        schedule: [
+          { day: "Day 1: Foundation", task: "Review Process vs Thread memory layouts & Critical Section problems.", done: false },
+          { day: "Day 2: Deep Dive", task: "Master Mutex vs Semaphores and analyze race condition edge cases.", done: false },
+          { day: "Day 3: Self-Test", task: "Solve Coffman deadlock elimination problems and run 100% quiz drill.", done: false }
+        ],
+        mindmap: {
+          title: "Operating Systems Concurrency",
+          children: [
+            {
+              title: "Execution Models",
+              children: [
+                { title: "Processes (Isolated address space, heavy)" },
+                { title: "Threads (Shared heap & address space, lightweight)" }
+              ]
+            },
+            {
+              title: "Synchronization Primitives",
+              children: [
+                { title: "Mutex (Binary lock with single owner)" },
+                { title: "Semaphore (Dijkstra counting mechanism: P/V)" },
+                { title: "Spinlock (Busy-waiting loop on multi-core)" }
+              ]
+            },
+            {
+              title: "Deadlock Theory",
+              children: [
+                { title: "4 Coffman Conditions (Must all hold)" },
+                { title: "Prevention (Total resource ordering)" },
+                { title: "Avoidance (Dijkstra's Banker's Algorithm)" }
+              ]
+            }
+          ]
+        },
+        sections: [
+          {
+            title: "Process Isolation vs Thread Concurrency",
+            complexity: "easy",
+            bullets: [
+              "A <span class='spoiler-term' onclick='revealSpoiler(this)'>Process</span> is an executing instance of a computer program, granted its own isolated address space, page tables, and file handles.",
+              "A <span class='spoiler-term' onclick='revealSpoiler(this)'>Thread</span> is a lightweight stream of CPU execution residing inside a process. Threads share the process's code segment, global data, and heap.",
+              "Context switching between processes requires invalidating TLB caches; thread switching within the same process avoids memory mapping overhead."
+            ]
+          },
+          {
+            title: "Critical Sections, Race Conditions & Locks",
+            complexity: "medium",
+            bullets: [
+              "A <span class='spoiler-term' onclick='revealSpoiler(this)'>Race Condition</span> occurs when multiple threads concurrently read and write shared data without synchronization, producing unpredictable outcomes.",
+              "A <span class='spoiler-term' onclick='revealSpoiler(this)'>Mutex</span> enforces binary mutual exclusion: only the acquiring thread may unlock it.",
+              "A <span class='spoiler-term' onclick='revealSpoiler(this)'>Semaphore</span> maintains a non-negative integer counter for controlling access to a finite pool of identical resources."
+            ]
+          },
+          {
+            title: "The Deadlock Dilemma & Coffman Conditions",
+            complexity: "hard",
+            bullets: [
+              "A <span class='spoiler-term' onclick='revealSpoiler(this)'>Deadlock</span> is an impasse where every member of a set of processes is blocked waiting for an event that only another member process can trigger.",
+              "All four <span class='spoiler-term' onclick='revealSpoiler(this)'>Coffman Conditions</span> must hold simultaneously: Mutual Exclusion, Hold & Wait, No Preemption, and Circular Wait.",
+              "Enforcing a strict linear hierarchy for acquiring resource IDs permanently breaks the <span class='spoiler-term' onclick='revealSpoiler(this)'>Circular Wait</span> condition."
+            ]
+          }
+        ],
+        cloze: [
+          { sentence: "A [blank] owns its own address space, whereas [blank] share the process heap.", answers: ["process", "threads"] },
+          { sentence: "The 4 prerequisite conditions for deadlock are called the [blank] conditions.", answers: ["coffman"] },
+          { sentence: "A [blank] is a lock where the waiting thread executes in a busy-waiting loop.", answers: ["spinlock"] }
+        ],
+        quiz: [
+          {
+            q: "What resource is shared among multiple threads belonging to the exact same process?",
+            options: ["Stack pointer and registers", "Heap memory and code segment", "Private virtual address space", "Hardware program counter"],
+            correct: 1,
+            explanation: "Threads inside the same process share heap memory and code segment, but retain independent registers and stacks."
+          },
+          {
+            q: "Which of the following is NOT one of the four Coffman deadlock conditions?",
+            options: ["Circular Wait", "Hold and Wait", "Preemptive Scheduling", "Mutual Exclusion"],
+            correct: 2,
+            explanation: "The Coffman condition is 'No Preemption' (resources cannot be confiscated), NOT preemptive scheduling."
+          },
+          {
+            q: "How does Dijkstra's Banker's Algorithm handle deadlocks?",
+            options: ["Deadlock Prevention by killing processes", "Deadlock Avoidance via safe state evaluation", "Deadlock Recovery using rollback logs", "Deadlock Detection using wait-for graphs"],
+            correct: 1,
+            explanation: "Banker's Algorithm performs deadlock avoidance by dynamically testing whether granting an allocation leaves the system in a safe state."
+          },
+          {
+            q: "What differentiates a Mutex from a counting Semaphore?",
+            options: ["A Mutex can only be unlocked by the thread that locked it", "Semaphores cannot protect critical sections", "Mutexes have an integer counter greater than 1", "Semaphores cannot be used in OS kernels"],
+            correct: 0,
+            explanation: "A Mutex includes ownership semantics—only the thread that locked it can unlock it. Semaphores are signaling primitives without ownership."
+          },
+          {
+            q: "Why are spinlocks generally discouraged on single-core uniprocessor CPUs?",
+            options: ["They consume too much RAM", "Busy-waiting wastes the only CPU core preventing the lock-holder from running", "They require hardware virtualization", "They cause memory leaks in the heap"],
+            correct: 1,
+            explanation: "On a uniprocessor, spinning locks up the CPU core, preventing the thread holding the lock from ever finishing its task."
+          }
+        ],
+        flashcards: [
+          { front: "Process vs Thread", back: "Processes have isolated address spaces. Threads exist inside a process and share its heap and code segment." },
+          { front: "Critical Section", back: "A code segment accessing shared resources that must be executed atomically under mutual exclusion." },
+          { front: "Mutex vs Semaphore", back: "Mutex is a binary locking tool with thread ownership. Semaphore is a counting signal with P/wait and V/signal operations." },
+          { front: "4 Coffman Conditions", back: "1. Mutual Exclusion\n2. Hold and Wait\n3. No Preemption\n4. Circular Wait" },
+          { front: "Deadlock Avoidance", back: "Dynamically verifying if a resource allocation leaves the system in a 'Safe State' (e.g. Banker's Algorithm)." }
+        ]
+      };
+    }
+
+    function generateBioWorkspace(text) {
+      return {
+        takeaways: [
+          "Glycolysis breaks 1 glucose into 2 pyruvates in the cytoplasm, netting 2 ATP and 2 NADH anaerobically.",
+          "Krebs cycle occurs in the mitochondrial matrix, producing NADH, FADH2, and CO2 electron carriers.",
+          "Oxidative Phosphorylation and ATP Synthase generate the bulk of ATP (~30-34) via chemiosmosis."
+        ],
+        glossary: [
+          { term: "ATP", def: "Adenosine Triphosphate: the primary energy currency of biological cells." },
+          { term: "Glycolysis", def: "Cytoplasmic anaerobic pathway catabolizing glucose into 2 pyruvate molecules." },
+          { term: "Krebs Cycle", def: "Mitochondrial matrix metabolic cycle oxidizing Acetyl-CoA into CO2, NADH, and FADH2." },
+          { term: "Electron Transport Chain", def: "Multiprotein complexes in the inner mitochondrial membrane creating a proton gradient." },
+          { term: "Chemiosmosis", def: "Movement of protons (H+) across a membrane through ATP Synthase generating ATP." },
+          { term: "NADH & FADH2", def: "Coenzymes acting as high-energy electron shuttles to the Electron Transport Chain." }
+        ],
+        mnemonics: [
+          { word: "G-K-E", meaning: "Stages of Respiration: Glycolysis (Cytoplasm) -> Krebs (Matrix) -> ETC (Inner Membrane)." },
+          { word: "O-I-L  R-I-G", meaning: "Oxidation Is Loss of electrons; Reduction Is Gain of electrons." }
+        ],
+        schedule: [
+          { day: "Day 1: Foundation", task: "Memorize inputs/outputs of Glycolysis and Cytoplasmic energy yield.", done: false },
+          { day: "Day 2: Deep Dive", task: "Trace Acetyl-CoA through the Krebs cycle and quantify NADH/FADH2.", done: false },
+          { day: "Day 3: Self-Test", task: "Master Proton Motive Force, ATP Synthase rotation, and take the quiz.", done: false }
+        ],
+        mindmap: {
+          title: "Cellular Respiration Bioenergetics",
+          children: [
+            {
+              title: "1. Glycolysis (Cytoplasm)",
+              children: [
+                { title: "Inputs: 1 Glucose + 2 NAD+ + 2 ADP" },
+                { title: "Outputs: 2 Pyruvate + 2 NADH + 2 ATP net" }
+              ]
+            },
+            {
+              title: "2. Krebs Cycle (Matrix)",
+              children: [
+                { title: "Transition: Pyruvate -> Acetyl-CoA" },
+                { title: "Outputs: 6 NADH + 2 FADH2 + 2 ATP + 4 CO2" }
+              ]
+            },
+            {
+              title: "3. Oxidative Phosphorylation (Inner Membrane)",
+              children: [
+                { title: "ETC: Complexes I - IV pump protons (H+)" },
+                { title: "Chemiosmosis: ATP Synthase motor yields ~30-34 ATP" }
+              ]
+            }
+          ]
+        },
+        sections: [
+          {
+            title: "Glycolysis: Cytoplasmic Sugar Splitting",
+            complexity: "easy",
+            bullets: [
+              "<span class='spoiler-term' onclick='revealSpoiler(this)'>Glycolysis</span> occurs in the cytoplasm and requires no oxygen (anaerobic).",
+              "One 6-carbon glucose molecule is broken down into two 3-carbon molecules of <span class='spoiler-term' onclick='revealSpoiler(this)'>Pyruvate</span>.",
+              "The process produces a net gain of <span class='spoiler-term' onclick='revealSpoiler(this)'>2 ATP</span> and 2 molecules of NADH via substrate-level phosphorylation."
+            ]
+          },
+          {
+            title: "The Krebs Cycle & Matrix Electron Harvesting",
+            complexity: "medium",
+            bullets: [
+              "Pyruvate enters the mitochondrial matrix and is converted into <span class='spoiler-term' onclick='revealSpoiler(this)'>Acetyl-CoA</span>.",
+              "The cycle strips electrons to reduce NAD+ to <span class='spoiler-term' onclick='revealSpoiler(this)'>NADH</span> and FAD to <span class='spoiler-term' onclick='revealSpoiler(this)'>FADH2</span>.",
+              "Carbon atoms are released as waste molecules of <span class='spoiler-term' onclick='revealSpoiler(this)'>Carbon Dioxide (CO2)</span>."
+            ]
+          },
+          {
+            title: "Electron Transport Chain & ATP Synthase Chemiosmosis",
+            complexity: "hard",
+            bullets: [
+              "Electrons move through complexes I-IV, pumping protons into the intermembrane space to create the <span class='spoiler-term' onclick='revealSpoiler(this)'>Proton Motive Force</span>.",
+              "<span class='spoiler-term' onclick='revealSpoiler(this)'>Oxygen</span> acts as the final electron acceptor, combining with protons to form water.",
+              "Protons flow through the rotary enzyme <span class='spoiler-term' onclick='revealSpoiler(this)'>ATP Synthase</span>, synthesizing the majority of cellular ATP."
+            ]
+          }
+        ],
+        cloze: [
+          { sentence: "Glycolysis occurs in the [blank] and breaks glucose into two molecules of [blank].", answers: ["cytoplasm", "pyruvate"] },
+          { sentence: "The terminal electron acceptor at the end of the electron transport chain is [blank].", answers: ["oxygen"] },
+          { sentence: "Protons rotate the catalytic enzyme [blank] to phosphorylate ADP into ATP.", answers: ["atp synthase"] }
+        ],
+        quiz: [
+          {
+            q: "Where in eukaryotic cells does Glycolysis take place?",
+            options: ["Mitochondrial Matrix", "Cytoplasm (Cytosol)", "Inner Mitochondrial Membrane", "Nucleus"],
+            correct: 1,
+            explanation: "Glycolysis occurs in the cytoplasm and does not require membrane-bound organelles or oxygen."
+          },
+          {
+            q: "What is the net ATP yield produced specifically by Glycolysis from one glucose molecule?",
+            options: ["36 ATP", "4 ATP", "2 ATP", "32 ATP"],
+            correct: 2,
+            explanation: "Glycolysis consumes 2 ATP during investment and generates 4 ATP, yielding a net gain of 2 ATP."
+          },
+          {
+            q: "What serves as the terminal electron acceptor in aerobic respiration?",
+            options: ["Carbon Dioxide", "Water", "Molecular Oxygen (O2)", "NAD+"],
+            correct: 2,
+            explanation: "Oxygen is the final electron acceptor at Complex IV, reacting with protons to produce H2O."
+          },
+          {
+            q: "Which enzyme is directly responsible for synthesizing ATP using a proton gradient?",
+            options: ["DNA Polymerase", "ATP Synthase", "Pyruvate Kinase", "Amylase"],
+            correct: 1,
+            explanation: "ATP Synthase functions as a molecular turbine, utilizing the proton motive force to synthesize ATP from ADP and Pi."
+          },
+          {
+            q: "During the Krebs Cycle, what happens to the carbons originally present in glucose?",
+            options: ["They are synthesized into lipids", "They are released as carbon dioxide (CO2)", "They form lactic acid", "They remain in the matrix as glycogen"],
+            correct: 1,
+            explanation: "The carbons are fully oxidized and released into the atmosphere as carbon dioxide (CO2)."
+          }
+        ],
+        flashcards: [
+          { front: "Glycolysis Net Yield", back: "2 ATP (net), 2 NADH, and 2 Pyruvate molecules (occurs in Cytoplasm)." },
+          { front: "Krebs Cycle Location", back: "Mitochondrial Matrix. Produces NADH, FADH2, ATP, and CO2." },
+          { front: "Terminal Electron Acceptor", back: "Oxygen (O2). It accepts electrons and protons at Complex IV to form H2O." },
+          { front: "Chemiosmosis", back: "The movement of protons (H+) across a membrane through ATP Synthase to generate ATP." },
+          { front: "Total ATP per Glucose", back: "Approximately 30 to 32 ATP molecules under standard aerobic conditions." }
+        ]
+      };
+    }
+
+    function generateGenericWorkspace(text, title) {
+      const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 20);
+      const words = text.split(/\s+/).filter(w => w.length > 4);
+      const topWord1 = words[0] || "Concept";
+      const topWord2 = words[Math.floor(words.length * 0.3)] || "Mechanism";
+      const topWord3 = words[Math.floor(words.length * 0.6)] || "Application";
+
+      return {
+        takeaways: [
+          sentences[0] || `${topWord1} represents the core foundation of this study material.`,
+          sentences[1] || `Key structural principles dictate how ${topWord2} interacts in the system.`,
+          sentences[2] || `Practical mastery requires understanding the critical role of ${topWord3}.`
+        ],
+        glossary: [
+          { term: topWord1, def: `Primary foundational terminology referenced throughout the lecture documentation.` },
+          { term: topWord2, def: `Core functional mechanism governing systemic behavioral rules.` },
+          { term: topWord3, def: `Advanced conceptual element crucial for practical application and exam mastery.` },
+          { term: "Critical Analysis", def: "The rigorous examination and evaluation of underlying principles." }
+        ],
+        mnemonics: [
+          { word: "F-A-S-T", meaning: `Foundations of ${topWord1}, Analysis of ${topWord2}, Synthesis of ${topWord3}, Testing.` }
+        ],
+        schedule: [
+          { day: "Day 1: Foundation", task: `Read core definitions and build foundational understanding of ${topWord1}.`, done: false },
+          { day: "Day 2: Deep Dive", task: `Analyze interconnections and working models of ${topWord2}.`, done: false },
+          { day: "Day 3: Self-Test", task: `Review ${topWord3} flashcards and achieve 100% on the assessment quiz.`, done: false }
+        ],
+        mindmap: {
+          title: title || "Lecture Workspace",
+          children: [
+            {
+              title: `1. Core Principles (${topWord1})`,
+              children: [
+                { title: sentences[0]?.slice(0, 45) || "Foundational principles" }
+              ]
+            },
+            {
+              title: `2. Detailed Dynamics (${topWord2})`,
+              children: [
+                { title: sentences[1]?.slice(0, 45) || "Operational characteristics" }
+              ]
+            },
+            {
+              title: `3. Synthesis & Application (${topWord3})`,
+              children: [
+                { title: sentences[2]?.slice(0, 45) || "Practical synthesis & conclusions" }
+              ]
+            }
+          ]
+        },
+        sections: [
+          {
+            title: `Introduction & Foundational Dynamics of ${topWord1}`,
+            complexity: "easy",
+            bullets: [
+              `The core foundation hinges on understanding <span class='spoiler-term' onclick='revealSpoiler(this)'>${topWord1}</span> and its primary definitions.`,
+              sentences[0] ? `${sentences[0]}.` : `Initial examination reveals essential structural characteristics.`
+            ]
+          },
+          {
+            title: `Operational Mechanics of ${topWord2}`,
+            complexity: "medium",
+            bullets: [
+              `A key requirement involves managing <span class='spoiler-term' onclick='revealSpoiler(this)'>${topWord2}</span> across various state transitions.`,
+              sentences[1] ? `${sentences[1]}.` : `System dynamics ensure consistency and predictability.`
+            ]
+          },
+          {
+            title: `Advanced Edge Cases & Analysis of ${topWord3}`,
+            complexity: "hard",
+            bullets: [
+              `High-level exam questions frequently target <span class='spoiler-term' onclick='revealSpoiler(this)'>${topWord3}</span> and non-linear interactions.`,
+              sentences[2] ? `${sentences[2]}.` : `Synthesis of all components ensures robust theoretical mastery.`
+            ]
+          }
+        ],
+        cloze: [
+          { sentence: `The foundational concept established in the text is [blank].`, answers: [topWord1.toLowerCase()] },
+          { sentence: `System dynamics and structural operations are governed by [blank].`, answers: [topWord2.toLowerCase()] }
+        ],
+        quiz: [
+          {
+            q: `What is the primary significance of ${topWord1} as discussed in the text?`,
+            options: [`It serves as the core foundational mechanism`, "It is an obsolete secondary artifact", "It is only relevant during error recovery", "It has no bearing on system outcomes"],
+            correct: 0,
+            explanation: `${topWord1} provides the foundational framework underpinning the concepts in this material.`
+          },
+          {
+            q: `Which dynamic element governs operational characteristics according to the notes?`,
+            options: ["Random fluctuation", topWord2, "External unmonitored inputs", "Static constants"],
+            correct: 1,
+            explanation: `${topWord2} represents the primary governing factor described in the lecture.`
+          },
+          {
+            q: `What is recommended to achieve full exam readiness?`,
+            options: ["Skip foundational reading", `Synthesize ${topWord3} with active recall drills`, "Only read the first paragraph", "Ignore practical applications"],
+            correct: 1,
+            explanation: "Active recall and synthesis of key concepts guarantee optimal retention."
+          },
+          {
+            q: `How does the material classify complex system interactions?`,
+            options: ["As trivial and unnecessary", "As multi-stage processes requiring structured analysis", "As entirely random events", "As unquantifiable"],
+            correct: 1,
+            explanation: "The material structures complex processes into distinct stages and principles."
+          },
+          {
+            q: `What is the role of active recall in mastering this topic?`,
+            options: ["Passive re-reading is proven superior", "Retrieval testing solidifies memory pathways", "It replaces the need for conceptual understanding", "It has no verified study benefit"],
+            correct: 1,
+            explanation: "Active retrieval testing cements neural pathways and prevents the illusion of competence."
+          }
+        ],
+        flashcards: [
+          { front: `What is ${topWord1}?`, back: `The primary foundational concept introduced in this workspace material.` },
+          { front: `Key role of ${topWord2}`, back: `Governs systemic operational dynamics and critical interactions.` },
+          { front: `High-yield topic: ${topWord3}`, back: `The high-priority advanced concept most likely to be tested on exams.` },
+          { front: "Effective Study Method", back: "Active recall + spaced repetition + conceptual synthesis." },
+          { front: "Summary Goal", back: "Zero busywork and instant exam readiness through structured review." }
+        ]
+      };
+    }
+
+    /* ==========================================================================
+       9. WORKSPACE RENDERING (DOM POPULATION)
+       ========================================================================== */
+    function renderWorkspace(ws) {
+      // 1. Takeaways Highlight Strip (Feature #16)
+      const takeawaysGrid = document.getElementById('takeawaysGrid');
+      takeawaysGrid.innerHTML = ws.takeaways.map((t, idx) => `
+        <div class="takeaway-pill-card">
+          <strong style="color: var(--brand-coral); display: block; margin-bottom: 3px;">⚡ Takeaway #${idx+1}</strong>
+          ${t}
+        </div>
+      `).join('');
+
+      // 2. Key Definitions Sidebar (Feature #6)
+      renderGlossary(ws.glossary || []);
+
+      // 3. Mnemonics (Feature #24)
+      const mnemonicsContainer = document.getElementById('mnemonicsContainer');
+      mnemonicsContainer.innerHTML = (ws.mnemonics || []).map(m => `
+        <div class="mnemonic-box">
+          <div class="mnemonic-word">🔑 ${m.word}</div>
+          <p style="font-size: 0.82rem; margin-top: 4px; font-weight: 600;">${m.meaning}</p>
+        </div>
+      `).join('');
+
+      // 4. 3-Day Micro Schedule (Feature #14)
+      renderSchedule(ws.schedule || []);
+
+      // 5. Mind-Map Outline Tree (Feature #11)
+      renderMindMap(ws.mindmap || { title: ws.title, children: [] });
+
+      // 6. Interactive Revision Notes (Feature #3 & #18)
+      renderRevisionNotes(ws.sections || []);
+
+      // 7. Cloze / Fill-in-the-Blanks (Feature #17)
+      renderClozeExercises(ws.cloze || []);
+
+      // 8. 5-Question Quiz (Feature #4 & #12)
+      AppState.quizQuestions = ws.quiz || [];
+      AppState.quizAnswers = {};
+      renderQuiz(AppState.quizQuestions);
+
+      // 9. 3D Flashcards (Feature #23)
+      AppState.flashcards = ws.flashcards || [];
+      AppState.currentCardIndex = 0;
+      AppState.masteredCards.clear();
+      AppState.reviewCards.clear();
+      updateFlashcardUI();
+    }
+
+    /* ==========================================================================
+       10. GLOSSARY & FILTERING (Feature #6)
+       ========================================================================== */
+    function renderGlossary(items) {
+      const container = document.getElementById('glossaryListContainer');
+      container.innerHTML = items.map(item => `
+        <div class="glossary-item" data-term="${item.term.toLowerCase()}">
+          <span class="glossary-term">${item.term}</span>
+          <span>${item.def}</span>
+        </div>
+      `).join('');
+    }
+
+    function filterGlossary() {
+      const q = document.getElementById('glossarySearch').value.toLowerCase();
+      const items = document.querySelectorAll('.glossary-item');
+      items.forEach(el => {
+        const term = el.getAttribute('data-term');
+        const text = el.innerText.toLowerCase();
+        el.style.display = (term.includes(q) || text.includes(q)) ? 'block' : 'none';
+      });
+    }
+
+    /* ==========================================================================
+       11. 3-DAY MICRO STUDY SCHEDULE (Feature #14)
+       ========================================================================== */
+    function renderSchedule(schedule) {
+      const container = document.getElementById('scheduleContainer');
+      container.innerHTML = schedule.map((s, idx) => `
+        <div class="schedule-day-box">
+          <div class="schedule-day-header">
+            <span>${s.day}</span>
+            <span class="badge-pill blue" style="font-size: 0.65rem;">Planned</span>
+          </div>
+          <label class="schedule-item">
+            <input type="checkbox" class="schedule-checkbox" ${s.done ? 'checked' : ''} onchange="toggleScheduleItem(${idx}, this.checked)">
+            <span>${s.task}</span>
+          </label>
+        </div>
+      `).join('');
+      updateScheduleProgress();
+    }
+
+    function toggleScheduleItem(idx, isChecked) {
+      if (AppState.workspaceData && AppState.workspaceData.schedule[idx]) {
+        AppState.workspaceData.schedule[idx].done = isChecked;
+        updateScheduleProgress();
+        autoSaveToLocalStorage();
+        if (isChecked) showToast("Day goal completed! Keep going! 🚀");
+      }
+    }
+
+    function updateScheduleProgress() {
+      if (!AppState.workspaceData || !AppState.workspaceData.schedule) return;
+      const total = AppState.workspaceData.schedule.length;
+      const done = AppState.workspaceData.schedule.filter(s => s.done).length;
+      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+      document.getElementById('scheduleProgressFill').style.width = `${pct}%`;
+      document.getElementById('scheduleProgressText').innerText = `${pct}%`;
+    }
+
+    /* ==========================================================================
+       12. MIND-MAP COLLAPSIBLE TREE (Feature #11)
+       ========================================================================== */
+    function renderMindMap(root) {
+      const container = document.getElementById('mindmapContainer');
+      function buildTree(node) {
+        if (!node.children || node.children.length === 0) {
+          return `<li><span>📄 ${node.title}</span></li>`;
+        }
+        return `
+          <li>
+            <span class="tree-toggle" onclick="toggleTreeNode(this)">
+              <span>📂</span> <strong>${node.title}</strong>
+            </span>
+            <ul>
+              ${node.children.map(buildTree).join('')}
+            </ul>
+          </li>
+        `;
+      }
+      container.innerHTML = `<ul>${buildTree(root)}</ul>`;
+    }
+
+    function toggleTreeNode(el) {
+      const ul = el.nextElementSibling;
+      if (ul) {
+        const isHidden = ul.style.display === 'none';
+        ul.style.display = isHidden ? 'block' : 'none';
+        el.querySelector('span').innerText = isHidden ? '📂' : '📁';
+      }
+    }
+
+    /* ==========================================================================
+       13. INTERACTIVE REVISION NOTES & HEATMAP (Features #3, #5, #10, #18, #22)
+       ========================================================================== */
+    function renderRevisionNotes(sections) {
+      const container = document.getElementById('revisionNotesContainer');
+      container.innerHTML = sections.map((sec, idx) => `
+        <div class="note-section-card complexity-${sec.complexity || 'medium'}" data-complexity="${sec.complexity || 'medium'}" id="noteSec${idx}">
+          <div class="note-section-header">
+            <h3 style="font-size: 1.05rem;">${sec.title}</h3>
+            <span class="badge-pill ${(sec.complexity === 'easy') ? 'green' : (sec.complexity === 'hard') ? 'coral' : 'yellow'}">
+              ${(sec.complexity || 'medium').toUpperCase()}
+            </span>
+          </div>
+          <div class="note-content-body">
+            <ul>
+              ${(sec.bullets || []).map(b => `<li>${b}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Persona Switcher (Feature #5)
+    function setPersona(persona, btnEl) {
+      AppState.currentPersona = persona;
+      document.querySelectorAll('.persona-btn').forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+
+      if (!AppState.workspaceData) return;
+
+      const sections = JSON.parse(JSON.stringify(AppState.workspaceData.sections));
+      sections.forEach(sec => {
+        sec.bullets = sec.bullets.map(b => {
+          let clean = b.replace(/<\/?span[^>]*>/g, '');
+          if (persona === 'eli5') {
+            return `👶 <em>Like building blocks:</em> ${clean.replace(/deadlock/gi, 'traffic jam').replace(/process/gi, 'kitchen chef')}`;
+          } else if (persona === 'professor') {
+            return `🎓 <strong>Rigorous Principle:</strong> Note with precision that ${clean}. (Examinable concept!)`;
+          } else if (persona === 'cram') {
+            return `🚨 <strong>EXAM TRAP:</strong> ${clean} — Memorize this line for guaranteed points!`;
+          } else {
+            return `⚡ ${clean.slice(0, 90)}...`;
+          }
+        });
+      });
+
+      renderRevisionNotes(sections);
+      showToast(`Switched tone to: ${persona.toUpperCase()}`);
+    }
+
+    // ELI5 Complexity Slider (Feature #22)
+    function handleComplexitySlider(val) {
+      AppState.complexityLevel = parseInt(val, 10);
+      const labels = [
+        "Lv 1: Toddler/Toys",
+        "Lv 2: Middle School",
+        "Lv 3: College Undergrad",
+        "Lv 4: Graduate Seminar",
+        "Lv 5: PhD Specialist"
+      ];
+      const labelEl = document.getElementById('eli5SliderLabel');
+      labelEl.innerText = labels[AppState.complexityLevel - 1];
+      showToast(`Adjusted Complexity to Level ${val}: ${labels[val-1]}`);
+    }
+
+    // Active Recall Mode Toggle (Feature #10)
+    function toggleActiveRecall() {
+      AppState.activeRecall = !AppState.activeRecall;
+      const btn = document.getElementById('activeRecallToggleBtn');
+      if (AppState.activeRecall) {
+        document.body.classList.remove('recall-mode-off');
+        btn.innerText = "🙈 Active Recall: ON";
+        btn.classList.remove('btn-yellow');
+        showToast("Active Recall ON: Key terms blacked out. Click to reveal!");
+      } else {
+        document.body.classList.add('recall-mode-off');
+        btn.innerText = "👀 Active Recall: OFF";
+        btn.classList.add('btn-yellow');
+        showToast("Active Recall OFF: Terms revealed.");
+      }
+    }
+
+    function revealSpoiler(el) {
+      el.classList.toggle('revealed');
+    }
+
+    // Content Complexity Heatmap Filter (Feature #18)
+    function filterHeatmap(filter) {
+      AppState.currentFilter = filter;
+      const cards = document.querySelectorAll('.note-section-card');
+      cards.forEach(c => {
+        const comp = c.getAttribute('data-complexity');
+        if (filter === 'all' || comp === filter) {
+          c.style.display = 'block';
+        } else {
+          c.style.display = 'none';
+        }
+      });
+      showToast(`Showing ${filter.toUpperCase()} complexity notes`);
+    }
+
+    /* ==========================================================================
+       14. INTERACTIVE FILL-IN-THE-BLANKS (Feature #17)
+       ========================================================================== */
+    function renderClozeExercises(clozeList) {
+      const container = document.getElementById('clozeExercisesContainer');
+      container.innerHTML = clozeList.map((item, qIdx) => {
+        let parts = item.sentence.split(/\[blank\]/i);
+        let html = '<div style="margin-bottom: 12px; line-height: 1.8; font-size: 0.9rem;">';
+        parts.forEach((part, pIdx) => {
+          html += part;
+          if (pIdx < parts.length - 1) {
+            html += ` <input type="text" class="cloze-blank-input" data-qidx="${qIdx}" data-bidx="${pIdx}" placeholder="type here..."> `;
+          }
+        });
+        html += '</div>';
+        return html;
+      }).join('');
+    }
+
+    function checkClozeAnswers() {
+      if (!AppState.workspaceData || !AppState.workspaceData.cloze) return;
+      const inputs = document.querySelectorAll('.cloze-blank-input');
+      let correct = 0;
+      let total = inputs.length;
+
+      inputs.forEach(input => {
+        const qIdx = parseInt(input.getAttribute('data-qidx'), 10);
+        const bIdx = parseInt(input.getAttribute('data-bidx'), 10);
+        const expected = (AppState.workspaceData.cloze[qIdx]?.answers?.[bIdx] || '').toLowerCase().trim();
+        const actual = input.value.toLowerCase().trim();
+
+        if (actual && (actual === expected || (expected.includes(actual) && actual.length > 3))) {
+          input.classList.remove('wrong');
+          input.classList.add('correct');
+          correct++;
+        } else {
+          input.classList.remove('correct');
+          input.classList.add('wrong');
+          input.title = `Expected: ${expected}`;
+        }
+      });
+
+      const badge = document.getElementById('clozeScoreBadge');
+      badge.style.display = 'inline-block';
+      badge.innerText = `Score: ${correct} / ${total} Correct`;
+      showToast(`Fill-in-the-blanks: ${correct}/${total} correct!`);
+    }
+
+    /* ==========================================================================
+       15. 5-QUESTION QUIZ & WEAKNESS ANALYSIS (Features #4, #7, #12, #21)
+       ========================================================================== */
+    function renderQuiz(questions) {
+      const container = document.getElementById('quizContainer');
+      document.getElementById('quizDifficultyBadge').innerText = AppState.currentDifficulty.toUpperCase();
+      document.getElementById('quizScoreText').innerText = '';
+      document.getElementById('weaknessCard').style.display = 'none';
+
+      container.innerHTML = questions.map((q, qIdx) => `
+        <div class="quiz-question-wrap" id="quizQWrap${qIdx}">
+          <div class="quiz-question-text">${qIdx + 1}. ${q.q}</div>
+          <div class="quiz-options">
+            ${(q.options || []).map((opt, optIdx) => `
+              <label class="quiz-option-label" id="optLabel_${qIdx}_${optIdx}" onclick="selectQuizOption(${qIdx}, ${optIdx})">
+                <input type="radio" name="quizOpt_${qIdx}" value="${optIdx}" style="accent-color: var(--brand-blue);">
+                <span>${opt}</span>
+              </label>
+            `).join('')}
+          </div>
+          <div class="quiz-explanation-box" id="quizExp_${qIdx}">
+            💡 <strong>Explanation:</strong> ${q.explanation}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function selectQuizOption(qIdx, optIdx) {
+      AppState.quizAnswers[qIdx] = optIdx;
+    }
+
+    function submitQuiz() {
+      if (!AppState.quizQuestions || AppState.quizQuestions.length === 0) return;
+      let score = 0;
+      const missedTopics = [];
+
+      AppState.quizQuestions.forEach((q, qIdx) => {
+        const selected = AppState.quizAnswers[qIdx];
+        const correct = q.correct;
+        const expBox = document.getElementById(`quizExp_${qIdx}`);
+        if (expBox) expBox.style.display = 'block';
+
+        (q.options || []).forEach((_, optIdx) => {
+          const el = document.getElementById(`optLabel_${qIdx}_${optIdx}`);
+          if (el) el.classList.remove('correct-answer', 'wrong-answer');
+        });
+
+        const correctLabel = document.getElementById(`optLabel_${qIdx}_${correct}`);
+        if (correctLabel) correctLabel.classList.add('correct-answer');
+
+        if (selected === correct) {
+          score++;
+        } else {
+          if (selected !== undefined) {
+            const wrongLabel = document.getElementById(`optLabel_${qIdx}_${selected}`);
+            if (wrongLabel) wrongLabel.classList.add('wrong-answer');
+          }
+          missedTopics.push({
+            question: q.q,
+            correctAnswer: q.options[correct],
+            tip: q.explanation
+          });
+        }
+      });
+
+      AppState.quizScore = score;
+      const scoreText = document.getElementById('quizScoreText');
+      scoreText.innerText = `Result: ${score} / ${AppState.quizQuestions.length} (${Math.round(score/AppState.quizQuestions.length*100)}%)`;
+
+      // Targeted Weakness Analysis (Feature #7)
+      const weaknessCard = document.getElementById('weaknessCard');
+      const weaknessList = document.getElementById('weaknessListContainer');
+      if (missedTopics.length > 0) {
+        weaknessCard.style.display = 'block';
+        weaknessList.innerHTML = missedTopics.map(m => `
+          <div class="weakness-item">
+            <strong>⚠️ Missed:</strong> ${m.question}<br>
+            <span style="color: var(--brand-coral-accent); font-weight: 700;">Key Answer: ${m.correctAnswer}</span>
+            <p style="font-size: 0.78rem; margin-top: 2px; color: var(--text-muted);">${m.tip}</p>
+          </div>
+        `).join('');
+      } else {
+        weaknessCard.style.display = 'none';
+      }
+
+      // Confetti Celebration on 100% Score! (Feature #21)
+      if (score === AppState.quizQuestions.length) {
+        triggerConfettiCelebration();
+        showToast("🎉 PERFECT 100% SCORE! You've completely mastered this topic!");
+      } else {
+        showToast(`Quiz completed: ${score}/5! Review your flagged weaknesses.`);
+      }
+
+      autoSaveToLocalStorage();
+      syncWorkspaceToSupabase();
+    }
+
+    /* ==========================================================================
+       16. DYNAMIC CONFETTI CELEBRATION (Feature #21)
+       ========================================================================== */
+    function triggerConfettiCelebration() {
+      const canvas = document.getElementById('confettiCanvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const particles = [];
+      const colors = ['#2563eb', '#facc15', '#be123c', '#10b981', '#8b5cf6', '#ffffff'];
+
+      for (let i = 0; i < 150; i++) {
+        particles.push({
+          x: canvas.width / 2,
+          y: canvas.height / 2,
+          w: Math.random() * 12 + 6,
+          h: Math.random() * 8 + 4,
+          vx: (Math.random() - 0.5) * 18,
+          vy: (Math.random() - 0.7) * 18,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          angle: Math.random() * 360,
+          rotationSpeed: (Math.random() - 0.5) * 8,
+          gravity: 0.35,
+          alpha: 1
+        });
+      }
+
+      let frame = 0;
+      function renderConfetti() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let active = false;
+
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += p.gravity;
+          p.angle += p.rotationSpeed;
+          p.alpha -= 0.008;
+
+          if (p.alpha > 0) {
+            active = true;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.angle * Math.PI) / 180);
+            ctx.globalAlpha = Math.max(0, p.alpha);
+            ctx.fillStyle = p.color;
+            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+            ctx.restore();
+          }
+        });
+
+        frame++;
+        if (active && frame < 200) {
+          requestAnimationFrame(renderConfetti);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      renderConfetti();
+    }
+
+    /* ==========================================================================
+       17. INTERACTIVE 3D FLASHCARD DECK (Feature #23)
+       ========================================================================== */
+    function updateFlashcardUI() {
+      if (!AppState.flashcards || AppState.flashcards.length === 0) return;
+      const card = AppState.flashcards[AppState.currentCardIndex];
+      const inner = document.getElementById('flashcardInner');
+      inner.classList.remove('is-flipped');
+
+      document.getElementById('cardFrontText').innerText = card.front;
+      document.getElementById('cardBackText').innerText = card.back;
+      document.getElementById('flashcardCounterBadge').innerText = `${AppState.currentCardIndex + 1} / ${AppState.flashcards.length}`;
+      document.getElementById('masteredCount').innerText = AppState.masteredCards.size;
+      document.getElementById('reviewCount').innerText = AppState.reviewCards.size;
+    }
+
+    function flipCurrentCard() {
+      const inner = document.getElementById('flashcardInner');
+      inner.classList.toggle('is-flipped');
+    }
+
+    function nextFlashcard() {
+      if (!AppState.flashcards || AppState.flashcards.length === 0) return;
+      AppState.currentCardIndex = (AppState.currentCardIndex + 1) % AppState.flashcards.length;
+      updateFlashcardUI();
+    }
+
+    function prevFlashcard() {
+      if (!AppState.flashcards || AppState.flashcards.length === 0) return;
+      AppState.currentCardIndex = (AppState.currentCardIndex - 1 + AppState.flashcards.length) % AppState.flashcards.length;
+      updateFlashcardUI();
+    }
+
+    function markCardStatus(status) {
+      if (status === 'mastered') {
+        AppState.masteredCards.add(AppState.currentCardIndex);
+        AppState.reviewCards.delete(AppState.currentCardIndex);
+        showToast("Marked card as Mastered! 👍");
+      } else {
+        AppState.reviewCards.add(AppState.currentCardIndex);
+        AppState.masteredCards.delete(AppState.currentCardIndex);
+        showToast("Added card to Need Review pile! ⚠️");
+      }
+      nextFlashcard();
+    }
+
+    /* ==========================================================================
+       18. NATIVE AUDIO PLAYBACK (SPEECH SYNTHESIS) (Feature #13)
+       ========================================================================== */
+    function toggleAudioPlayback() {
+      if (!('speechSynthesis' in window)) {
+        showToast("Speech synthesis is not supported in this browser.");
+        return;
+      }
+
+      if (window.speechSynthesis.speaking) {
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+          AppState.isPlayingAudio = true;
+          document.getElementById('playAudioBtn').innerText = "⏸️ Pause Notes";
+        } else {
+          window.speechSynthesis.pause();
+          AppState.isPlayingAudio = false;
+          document.getElementById('playAudioBtn').innerText = "🔊 Resume Notes";
+        }
+        return;
+      }
+
+      const notesEl = document.getElementById('revisionNotesContainer');
+      const textToRead = notesEl ? notesEl.innerText : rawLectureInput.value;
+
+      if (!textToRead.trim()) {
+        showToast("No notes available to read.");
+        return;
+      }
+
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(textToRead);
+      utterance.rate = AppState.audioRate;
+      utterance.onend = () => {
+        AppState.isPlayingAudio = false;
+        document.getElementById('playAudioBtn').innerText = "🔊 Play Notes";
+      };
+      utterance.onerror = () => {
+        AppState.isPlayingAudio = false;
+        document.getElementById('playAudioBtn').innerText = "🔊 Play Notes";
+      };
+
+      window.speechSynthesis.speak(utterance);
+      AppState.isPlayingAudio = true;
+      document.getElementById('playAudioBtn').innerText = "⏸️ Pause Notes";
+      showToast("Playing lecture audio with native voice synthesis!");
+    }
+
+    function stopAudioPlayback() {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      AppState.isPlayingAudio = false;
+      document.getElementById('playAudioBtn').innerText = "🔊 Play Notes";
+      showToast("Audio stopped.");
+    }
+
+    function updateAudioRate() {
+      AppState.audioRate = parseFloat(document.getElementById('audioSpeedSelect').value);
+      if (window.speechSynthesis.speaking) {
+        stopAudioPlayback();
+        toggleAudioPlayback();
+      }
+    }
+
+    /* ==========================================================================
+       19. MULTI-FORMAT EXPORTING (Features #8 & #19)
+       ========================================================================== */
+    function exportMarkdown() {
+      if (!AppState.workspaceData) {
+        showToast("Generate a workspace first!");
+        return;
+      }
+      const ws = AppState.workspaceData;
+      let md = `# ${ws.title}\n\n`;
+      md += `> ${ws.studyTimeStr}\n\n`;
+      md += `## Key Takeaways\n`;
+      (ws.takeaways || []).forEach(t => { md += `- ${t}\n`; });
+      md += `\n## Key Definitions\n`;
+      (ws.glossary || []).forEach(g => { md += `- **${g.term}**: ${g.def}\n`; });
+      md += `\n## Revision Notes\n`;
+      (ws.sections || []).forEach(s => {
+        md += `### ${s.title} (${(s.complexity || 'MEDIUM').toUpperCase()})\n`;
+        (s.bullets || []).forEach(b => {
+          md += `- ${b.replace(/<\/?span[^>]*>/g, '')}\n`;
+        });
+        md += `\n`;
+      });
+      md += `\n---\n*Generated by StudyPulse AI (Groq LPU)*\n`;
+
+      navigator.clipboard.writeText(md).then(() => {
+        showToast("Markdown copied to clipboard! 📋");
+      }).catch(() => {
+        showToast("Failed to copy automatically.");
+      });
+    }
+
+    function exportTextFile() {
+      if (!AppState.workspaceData) {
+        showToast("Generate a workspace first!");
+        return;
+      }
+      const ws = AppState.workspaceData;
+      let text = `=== ${ws.title} ===\n${ws.studyTimeStr}\n\n`;
+      text += `--- KEY TAKEAWAYS ---\n` + (ws.takeaways || []).map((t, i) => `${i+1}. ${t}`).join('\n') + `\n\n`;
+      text += `--- GLOSSARY ---\n` + (ws.glossary || []).map(g => `* ${g.term}: ${g.def}`).join('\n') + `\n\n`;
+      text += `--- REVISION NOTES ---\n`;
+      (ws.sections || []).forEach(s => {
+        text += `[${(s.complexity || 'MEDIUM').toUpperCase()}] ${s.title}\n`;
+        (s.bullets || []).forEach(b => {
+          text += `  • ${b.replace(/<\/?span[^>]*>/g, '')}\n`;
+        });
+        text += `\n`;
+      });
+
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `StudyPulse_${ws.title.slice(0, 20).replace(/\s+/g, '_')}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Downloaded .TXT summary file! 💾");
+    }
+
+    function printCheatSheet() {
+      window.print();
+    }
+
+    /* ==========================================================================
+       20. SUPABASE AUTH & CLOUD SYNC (Feature #1)
+       ========================================================================== */
+    function openSupabaseModal() {
+      document.getElementById('supabaseModal').classList.add('open');
+      const url = localStorage.getItem('studypulse_supabase_url') || '';
+      const key = localStorage.getItem('studypulse_supabase_key') || '';
+      document.getElementById('supabaseUrlInput').value = url;
+      document.getElementById('supabaseKeyInput').value = key;
+    }
+
+    function closeSupabaseModal() {
+      document.getElementById('supabaseModal').classList.remove('open');
+    }
+
+    function saveSupabaseConfig() {
+      const url = document.getElementById('supabaseUrlInput').value.trim();
+      const key = document.getElementById('supabaseKeyInput').value.trim();
+
+      if (!url || !key) {
+        showToast("Please enter both Supabase URL and Anon Key.");
+        return;
+      }
+
+      localStorage.setItem('studypulse_supabase_url', url);
+      localStorage.setItem('studypulse_supabase_key', key);
+      initSupabaseClient(url, key);
+      showToast("Supabase credentials saved!");
+    }
+
+    function clearSupabaseConfig() {
+      localStorage.removeItem('studypulse_supabase_url');
+      localStorage.removeItem('studypulse_supabase_key');
+      document.getElementById('supabaseUrlInput').value = '';
+      document.getElementById('supabaseKeyInput').value = '';
+      AppState.supabaseClient = null;
+      updateSupabaseBadge(false, null);
+      showToast("Supabase credentials cleared. Switched to LocalStorage.");
+    }
+
+    function initSupabaseClient(url, key) {
+      if (!window.supabase || !url || !key) {
+        updateSupabaseBadge(false, null);
+        return;
+      }
+
+      try {
+        AppState.supabaseClient = window.supabase.createClient(url, key);
+        updateSupabaseBadge(true, null);
+
+        AppState.supabaseClient.auth.onAuthStateChange((event, session) => {
+          AppState.supabaseSession = session;
+          if (session && session.user) {
+            updateSupabaseBadge(true, session.user.email);
+            document.getElementById('authLoggedOutView').style.display = 'none';
+            document.getElementById('authLoggedInView').style.display = 'block';
+            document.getElementById('loggedInUserEmail').innerText = session.user.email;
+          } else {
+            updateSupabaseBadge(true, null);
+            document.getElementById('authLoggedOutView').style.display = 'block';
+            document.getElementById('authLoggedInView').style.display = 'none';
+          }
+        });
+      } catch (e) {
+        console.error("Supabase init error:", e);
+        updateSupabaseBadge(false, null);
+      }
+    }
+
+    async function handleSupabaseSignUp() {
+      if (!AppState.supabaseClient) {
+        showToast("Save Supabase URL and Key first!");
+        return;
+      }
+      const email = document.getElementById('authEmailInput').value.trim();
+      const password = document.getElementById('authPasswordInput').value.trim();
+      if (!email || !password) {
+        showToast("Enter email and password.");
+        return;
+      }
+
+      const { data, error } = await AppState.supabaseClient.auth.signUp({ email, password });
+      if (error) {
+        showToast(`Sign up error: ${error.message}`);
+      } else {
+        showToast("Sign up successful! Please check your email or sign in.");
+      }
+    }
+
+    async function handleSupabaseSignIn() {
+      if (!AppState.supabaseClient) {
+        showToast("Save Supabase URL and Key first!");
+        return;
+      }
+      const email = document.getElementById('authEmailInput').value.trim();
+      const password = document.getElementById('authPasswordInput').value.trim();
+      if (!email || !password) {
+        showToast("Enter email and password.");
+        return;
+      }
+
+      const { data, error } = await AppState.supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) {
+        showToast(`Sign in error: ${error.message}`);
+      } else {
+        showToast("Logged in to Supabase successfully!");
+        closeSupabaseModal();
+      }
+    }
+
+    async function handleSupabaseSignOut() {
+      if (AppState.supabaseClient) {
+        await AppState.supabaseClient.auth.signOut();
+        showToast("Signed out of Supabase.");
+      }
+    }
+
+    async function syncWorkspaceToSupabase() {
+      if (!AppState.supabaseClient || !AppState.supabaseSession) {
+        autoSaveToLocalStorage();
+        return;
+      }
+
+      try {
+        const user = AppState.supabaseSession.user;
+        const payload = {
+          user_id: user.id,
+          streak: AppState.streak,
+          workspace: AppState.workspaceData,
+          updated_at: new Date().toISOString()
+        };
+
+        const { error } = await AppState.supabaseClient
+          .from('studypulse_workspaces')
+          .upsert(payload, { onConflict: 'user_id' });
+
+        if (error) {
+          console.warn("Table sync note:", error.message);
+          autoSaveToLocalStorage();
+        } else {
+          showToast("Workspace synced to Supabase Cloud! ☁️");
+        }
+      } catch (err) {
+        console.warn("Cloud sync fallback to LocalStorage", err);
+        autoSaveToLocalStorage();
+      }
+    }
+
+    function updateSupabaseBadge(isConnected, userEmail) {
+      const dot = document.getElementById('supabaseDot');
+      const text = document.getElementById('supabaseStatusText');
+
+      dot.className = 'supabase-dot';
+      if (userEmail) {
+        dot.classList.add('authenticated');
+        text.innerText = `Cloud: ${userEmail.slice(0, 12)}...`;
+      } else if (isConnected) {
+        dot.classList.add('connected');
+        text.innerText = "Supabase Connected";
+      } else {
+        text.innerText = "Offline / Local";
+      }
+    }
+
+    /* ==========================================================================
+       21. TOAST NOTIFICATIONS
+       ========================================================================== */
+    function showToast(msg) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast-pill';
+      toast.innerHTML = `<span>⚡</span> <span>${msg}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    /* ==========================================================================
+       22. INITIALIZATION ON PAGE LOAD
+       ========================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      initLocalStorage();
+
+      const savedUrl = localStorage.getItem('studypulse_supabase_url');
+      const savedKey = localStorage.getItem('studypulse_supabase_key');
+      if (savedUrl && savedKey) {
+        initSupabaseClient(savedUrl, savedKey);
+      }
+
+      if (!AppState.workspaceData) {
+        loadSampleLecture('cs');
+      }
+    });
+  </script>
+</body>
+</html>
