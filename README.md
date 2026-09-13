@@ -26,7 +26,96 @@
 
 ---
 
-## 2. System Architecture Diagrams
+## 2. 💡 How to Use STUDS (Step-by-Step Instructions)
+
+STUDS is designed for zero learning curve and instant academic productivity. Follow this step-by-step walkthrough to transform raw notes into an active recall cockpit:
+
+### Step 1: Input Your Academic Material
+Choose any of the flexible input methods available in the top workspace:
+1. **Direct Text Entry / Paste**: Paste unstructured lecture notes, syllabi, reading assignments, or research papers directly into the central text area.
+2. **PDF / Document Drag-and-Drop**: Drag and drop any `.pdf`, `.docx`, `.txt`, or `.md` file into the designated upload dropzone. Extraction runs 100% client-side with zero data leakage.
+3. **Multimodal Vision OCR (Handwritten / Whiteboards)**: Click the camera icon to upload photos of chalkboard diagrams, handwritten lecture notebooks, or whiteboards. The system auto-transcribes them into formatted Markdown via the free vision cascade.
+4. **Instant 1-Click Academic Presets**: Click any preloaded preset button (*Operating Systems*, *Quantum Computing*, *Cellular Biology*, *Microeconomics*) to immediately test the system with rich, verified domain content.
+
+### Step 2: Select Your Synthesis Persona & Quiz Settings
+Customize the AI synthesis parameters to match your current study phase:
+* **Persona & Tone Switcher**:
+  * 🧸 **ELI5 (Explain Like I'm 5)**: Uses intuitive real-world metaphors, simple analogies, and plain language for beginners.
+  * ⚡ **Exam Cram**: High-yield bullet points, core testable formulas, and critical definitions for last-minute review.
+  * 🎓 **Strictest Professor**: Rigorous formal terminology, theoretical depth, edge cases, and zero hand-waving.
+  * ⏱️ **TL;DR**: Ultra-dense executive summaries for rapid scanning.
+* **Custom Quiz Difficulty Selector**: Choose between **Easy**, **Medium**, or **Hard** to calibrate question complexity before generation.
+* **Inference Model Selection**: Choose between high-performance Groq models (`openai/gpt-oss-120b` or `qwen/qwen3-32b-it`).
+
+### Step 3: Generate Your Interactive Study Workspace
+* Click **"⚡ Synthesize Workspace"**.
+* STUDS processes your material in sub-seconds via the Groq LPU round-robin key pool.
+* If all remote API limits are temporarily saturated, STUDS automatically falls back to its deterministic $O(N)$ local semantic extraction engine, guaranteeing zero downtime.
+
+### Step 4: Master Content Through Active Recall
+Navigate your generated study artifacts using the Left Navigation Sidebar or by scrolling through the unified dashboard:
+* **Key Takeaways Strip**: Review the top 3 high-yield core takeaways pinned to the top of your workspace.
+* **Active Recall Spoilers**: Read your structured notes where critical terms and concepts are concealed behind interactive blacked-out spoiler tags (`[[Key Term]]`). Click any term to reveal it and verify your retention.
+* **Dynamic ELI5 Slider**: Move the live difficulty slider (Levels 1 to 5) to adjust technical density on the fly without re-synthesizing.
+* **Interactive Audio Playback**: Click the speaker icon next to any section or note to listen to natural voice narration powered by the browser's native Web Speech API.
+* **Content Complexity Heatmap**: Identify dense, challenging sections at a glance using the green (Easy), amber (Medium), and red (Hard) complexity tags.
+
+### Step 5: Reinforce Retention with Interactive Drills
+* **3D Flip Flashcards**: Practice with flippable concept cards. Click to flip between question and answer, then sort cards into **"Mastered"** or **"Need Review"** buckets to track mastery.
+* **Cloze Fill-in-the-Blanks**: Test your memory by typing missing key terms directly into interactive sentence blanks with instant validation.
+* **Auto-Generated Mnemonics**: Memorize challenging multi-step processes or acronyms using the generated mnemonic memory devices.
+* **Interactive Mind-Map Outline**: Explore a collapsible hierarchical tree structure of your lecture topics to visualize conceptual relationships.
+* **Key Definitions Glossary**: Use the dedicated sidebar search bar to quickly look up formulas, technical terms, and definitions.
+
+### Step 6: Test Your Knowledge & Analyze Weaknesses
+* **Auto-Generated 5-Question Quiz**: Answer interactive multiple-choice questions with instant correct/incorrect feedback and detailed pedagogical explanations.
+* **Confetti Celebration & Study Streak**: Scoring a perfect 100% unleashes celebratory confetti and advances your daily study streak counter.
+* **Targeted Weakness Analysis**: If you miss any quiz questions, STUDS automatically flags the specific lecture topics and sections you need to revisit.
+
+### Step 7: Export & Offline Study
+* **Multi-Format Export**: One-click copy formatted Markdown to your clipboard or download clean `.txt` files for Notion, Obsidian, or Anki.
+* **Print Cheat Sheet View**: Generate an ink-friendly, print-optimized two-column cheat sheet ready for physical exam cramming.
+* **Distraction-Free Focus Mode**: Press `Esc` or click the Focus Mode button to hide all sidebars and headers for deep, uninterrupted reading.
+* **Dark / Light Mode**: Toggle your preferred aesthetic anytime via the sun/moon button in the top bar.
+* **LocalStorage Auto-Save**: All synthesized workspaces and study progress persist client-side across browser reloads.
+
+---
+
+## 3. 🚀 Comprehensive 25-Feature Suite
+
+STUDS delivers an exhaustive, end-to-end academic workspace with 25 distinct learning, synthesis, and workflow capabilities:
+
+| # | Feature Name | Category | Description |
+| :---: | :--- | :--- | :--- |
+| **01** | **PDF/Doc Drag-and-Drop Parser** | *Input & Ingestion* | Client-side file uploading and text extraction. |
+| **02** | **Interactive Revision Notes** | *Content Synthesis* | Condensed, topic-by-topic structured summaries. |
+| **03** | **Auto-Generated 5-Question Quiz** | *Assessment* | Interactive multiple-choice engine with instant feedback. |
+| **04** | **Persona & Tone Switcher** | *AI Synthesis* | Instant tone toggle (ELI5, Exam Cram, Strictest Professor, TL;DR). |
+| **05** | **Key Definitions Glossary Sidebar** | *Reference & Search* | Dedicated search/filter panel for terms and formulas. |
+| **06** | **Targeted Weakness Analysis** | *Adaptive Learning* | Flags topics corresponding to incorrect quiz answers. |
+| **07** | **Multi-Format Exporting** | *Portability* | Copy Markdown, export .txt, or generate printable views. |
+| **08** | **Estimated Study Time Calculator** | *Productivity* | Dynamic reading time readouts based on output word count. |
+| **09** | **Active Recall Mode** | *Cognitive Retention* | Click-to-reveal blacked-out key terms embedded in notes. |
+| **10** | **Interactive Mind-Map Outline** | *Knowledge Mapping* | Collapsible hierarchical tree layout of lecture concepts. |
+| **11** | **Custom Quiz Difficulty Selector** | *Assessment* | Select difficulty level (Easy, Medium, Hard) before generating. |
+| **12** | **Interactive Audio Playback** | *Accessibility* | Text-to-Speech playback powered by native browser APIs. |
+| **13** | **3-Day Micro Study Schedule** | *Spaced Repetition* | Splits material into structured study milestone blocks. |
+| **14** | **Dark/Light Theme Switcher** | *UI & Accessibility* | Instant UI color scheme toggle. |
+| **15** | **Key Takeaways Highlight Strip** | *Executive Summary* | Pinned top 3 core takeaways at the top of the interface. |
+| **16** | **Interactive Fill-in-the-Blanks** | *Active Retrieval* | Dynamic cloze deletion practice exercises. |
+| **17** | **Content Complexity Heatmap** | *Visual Analytics* | Visual color-coding based on content density (Easy/Medium/Hard). |
+| **18** | **Print Cheat Sheet View** | *Offline Utility* | Print-optimized two-column formatting layout. |
+| **19** | **LocalStorage Auto-Save** | *Reliability* | Instant client-side persistence across browser refreshes. |
+| **20** | **Confetti & Study Streak** | *Gamification* | Dynamic visual rewards for 100% quiz scores + streak tracking. |
+| **21** | **ELI5 Complexity Slider** | *Adaptive Learning* | Live adjustment bar for note language difficulty. |
+| **22** | **Interactive 3D Flashcard Deck** | *Spaced Practice* | Flippable study cards with "Mastered" vs. "Review" buckets. |
+| **23** | **Auto-Generated Mnemonics Generator** | *Memory Aids* | Creates acronyms and memory tricks for key terms. |
+| **24** | **Distraction-Free Focus Mode** | *Productivity* | Hides panels and sidebars for an uncluttered reading view. |
+| **25** | **100% Free Multimodal Vision OCR** | *Vision & Ingestion* | Transcribes handwritten lecture notes and whiteboard photos with automatic fallback cascade. |
+
+---
+
+## 4. System Architecture Diagrams
 
 ### 📐 Diagram 1: High-Level End-to-End System Architecture
 
@@ -204,7 +293,7 @@ flowchart TD
 
 ---
 
-## 3. Technology Stack & Optimization Decisions
+## 5. Technology Stack & Optimization Decisions
 
 | Layer | Technology | Decision Rationale |
 | :--- | :--- | :--- |
@@ -218,7 +307,7 @@ flowchart TD
 
 ---
 
-## 4. REST API Endpoint Specifications
+## 6. REST API Endpoint Specifications
 
 ### `GET /api/health`
 Operational telemetry and uptime status for automated evaluation pipelines.
@@ -290,7 +379,7 @@ Transcribes handwritten notes or whiteboard snapshots using the 100% free multim
 
 ---
 
-## 5. Automated Test Suite (40 / 40 Tests Passing • 100% Pass Rate)
+## 7. Automated Test Suite (40 / 40 Tests Passing • 100% Pass Rate)
 
 The test suite runs headlessly in **< 400ms** via Node's native test runner (`npm test`):
 
@@ -317,7 +406,7 @@ ok 6 - SUITE 6: REST API Controllers & Error Boundaries (8 tests)
 
 ---
 
-## 5.1 Algorithmic & Performance Optimization Breakdown
+## 7.1 Algorithmic & Performance Optimization Breakdown
 
 1. **Deterministic O(N) Frequency-Map & Stopword Filtering Algorithm** (`src/lib/sampleData.ts`):
    - Replaced arbitrary array lookups with a single-pass tokenization histogram coupled with a curated `Set<string>` of English academic stopwords.
@@ -335,7 +424,7 @@ ok 6 - SUITE 6: REST API Controllers & Error Boundaries (8 tests)
 
 ---
 
-## 6. Hack2Skill Evaluation Criteria Alignment
+## 8. Hack2Skill Evaluation Criteria Alignment
 
 | Evaluation Pillar | Implementation & Alignment |
 | :--- | :--- |
@@ -348,7 +437,7 @@ ok 6 - SUITE 6: REST API Controllers & Error Boundaries (8 tests)
 
 ---
 
-## 7. Installation & Quick Start
+## 9. Installation & Quick Start
 
 ### 1. Prerequisites
 - **Node.js**: v18.0.0 or higher
