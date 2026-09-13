@@ -7,6 +7,7 @@ import { ColumnCenter } from '@/components/ColumnCenter';
 import { ColumnRight } from '@/components/ColumnRight';
 import { Sidebar } from '@/components/Sidebar';
 import { FocusedViews } from '@/components/FocusedViews';
+import { Upload } from 'lucide-react';
 import {
   WorkspaceData,
   PersonaType,
@@ -45,6 +46,7 @@ export default function STUDSPage() {
 
   // Generated Workspace Data
   const [workspace, setWorkspace] = useState<WorkspaceData>(() => getCSWorkspace());
+  const [isWorkspaceReady, setIsWorkspaceReady] = useState(false);
 
   // Toast helper
   const showToast = useCallback((msg: string) => {
@@ -146,8 +148,8 @@ export default function STUDSPage() {
   }, [isFocusMode, showToast]);
 
   // Secure Workspace Generation Orchestrator (Server-Side Route)
-  const handleGenerateWorkspace = async () => {
-    const text = rawText.trim();
+  const handleGenerateWorkspace = async (customText?: string) => {
+    const text = (typeof customText === 'string' ? customText : rawText).trim();
     if (!text) {
       showToast('Please enter, upload, or pre-load lecture text first!');
       return;
@@ -201,6 +203,7 @@ export default function STUDSPage() {
     if (nextWorkspace) {
       nextWorkspace.studyTimeStr = studyTimeStr;
       setWorkspace(nextWorkspace);
+      setIsWorkspaceReady(true);
       localStorage.setItem('studs_workspace', JSON.stringify(nextWorkspace));
     }
 
@@ -323,6 +326,7 @@ export default function STUDSPage() {
           streak={streak}
           isDark={isDark}
           onToggleTheme={handleToggleTheme}
+          isWorkspaceReady={isWorkspaceReady}
         />
       )}
 
@@ -372,72 +376,135 @@ export default function STUDSPage() {
                   isGenerating={isGenerating}
                   groqModel={groqModel}
                   workspaceTitle={workspace.title}
+                  isWorkspaceReady={isWorkspaceReady}
                 />
               )}
 
-              {/* 2-Column Executive Study Studio Layout */}
-              <main
-                id="dashboard-grid"
-                className={`max-w-[1520px] mx-auto mb-10 px-3 sm:px-5 grid gap-6 items-start transition-all ${
-                  isFocusMode
-                    ? 'grid-cols-1 max-w-[880px]'
-                    : 'grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]'
-                }`}
-              >
-                {/* Main Study Hub: Takeaways, Controls, Notes, Cloze, Mind Map, Export */}
-                <ColumnCenter
-                  takeaways={workspace.takeaways}
-                  sections={workspace.sections}
-                  cloze={workspace.cloze}
-                  studyTimeStr={workspace.studyTimeStr || '⏱️ ~5 mins study time'}
-                  activeRecall={activeRecall}
-                  onToggleActiveRecall={() => setActiveRecall(!activeRecall)}
-                  complexityLevel={complexityLevel}
-                  onComplexityChange={setComplexityLevel}
-                  onExportMarkdown={handleExportMarkdown}
-                  onExportText={handleExportText}
-                  onPrint={handlePrint}
-                  onShowToast={showToast}
-                  currentPersona={currentPersona}
-                  onPersonaChange={handlePersonaChange}
-                  mindmap={workspace.mindmap}
-                />
-
-                {/* Interactive Companion Rail: Flashcards, Quiz, Glossary & Mnemonics, 3-Day Plan */}
-                {!isFocusMode && (
-                  <ColumnRight
-                    quiz={workspace.quiz}
-                    flashcards={workspace.flashcards}
-                    difficulty={difficulty}
+              {/* 2-Column Executive Study Studio Layout (Only visible after 7-10s loader finishes!) */}
+              {isWorkspaceReady ? (
+                <main
+                  id="dashboard-grid"
+                  className={`max-w-[1520px] mx-auto mb-10 px-3 sm:px-5 grid gap-6 items-start transition-all ${
+                    isFocusMode
+                      ? 'grid-cols-1 max-w-[880px]'
+                      : 'grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]'
+                  }`}
+                >
+                  {/* Main Study Hub: Takeaways, Controls, Notes, Cloze, Mind Map, Export */}
+                  <ColumnCenter
+                    takeaways={workspace.takeaways}
+                    sections={workspace.sections}
+                    cloze={workspace.cloze}
+                    studyTimeStr={workspace.studyTimeStr || '⏱️ ~5 mins study time'}
+                    activeRecall={activeRecall}
+                    onToggleActiveRecall={() => setActiveRecall(!activeRecall)}
+                    complexityLevel={complexityLevel}
+                    onComplexityChange={setComplexityLevel}
+                    onExportMarkdown={handleExportMarkdown}
+                    onExportText={handleExportText}
+                    onPrint={handlePrint}
                     onShowToast={showToast}
-                    glossary={workspace.glossary}
-                    mnemonics={workspace.mnemonics}
-                    schedule={workspace.schedule}
-                    onToggleScheduleItem={handleToggleScheduleItem}
+                    currentPersona={currentPersona}
+                    onPersonaChange={handlePersonaChange}
+                    mindmap={workspace.mindmap}
                   />
-                )}
-              </main>
+
+                  {/* Interactive Companion Rail: Flashcards, Quiz, Glossary & Mnemonics, 3-Day Plan */}
+                  {!isFocusMode && (
+                    <ColumnRight
+                      quiz={workspace.quiz}
+                      flashcards={workspace.flashcards}
+                      difficulty={difficulty}
+                      onShowToast={showToast}
+                      glossary={workspace.glossary}
+                      mnemonics={workspace.mnemonics}
+                      schedule={workspace.schedule}
+                      onToggleScheduleItem={handleToggleScheduleItem}
+                    />
+                  )}
+                </main>
+              ) : (
+                <div className="max-w-[1520px] mx-auto mb-10 px-3 sm:px-5">
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'copy';
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) {
+                        const input = (document.getElementById('studs-file-upload') || document.querySelector('input[type="file"]')) as HTMLInputElement | null;
+                        if (input) {
+                          const dt = new DataTransfer();
+                          dt.items.add(file);
+                          input.files = dt.files;
+                          input.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                      }
+                    }}
+                    className="border-3 border-dashed border-[var(--card-border)] rounded-[var(--radius-lg)] p-10 sm:p-16 text-center bg-[var(--card-bg)]/60 hover:bg-[var(--brand-yellow-light)]/20 transition-all flex flex-col items-center justify-center min-h-[380px] shadow-[var(--shadow-sm)]"
+                  >
+                    <div className="w-16 h-16 rounded-2xl bg-[var(--brand-yellow)] border-[var(--border-thick)] flex items-center justify-center text-3xl mb-4 shadow-[var(--shadow-md)]">
+                      📑
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-black text-[var(--text-main)] mb-2">
+                      Workspace Ready — Awaiting Lecture Document
+                    </h3>
+                    <p className="text-xs sm:text-sm text-[var(--text-muted)] max-w-md mx-auto mb-6 leading-relaxed font-bold">
+                      Upload your lecture PDF (such as your compiled LaTeX notes) or drop notes above to synthesize your 25-feature study cockpit.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const input = (document.getElementById('studs-file-upload') || document.querySelector('input[type="file"]')) as HTMLInputElement | null;
+                        input?.click();
+                      }}
+                      className="btn-comic btn-comic-primary text-xs sm:text-sm flex items-center gap-2 px-6 py-3 cursor-pointer"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>Upload PDF Document</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
-            <FocusedViews
-              activeView={activeView}
-              workspace={workspace}
-              currentPersona={currentPersona}
-              onPersonaChange={handlePersonaChange}
-              activeRecall={activeRecall}
-              onToggleActiveRecall={() => setActiveRecall(!activeRecall)}
-              complexityLevel={complexityLevel}
-              onComplexityChange={setComplexityLevel}
-              onToggleScheduleItem={handleToggleScheduleItem}
-              difficulty={difficulty}
-              onExportMarkdown={handleExportMarkdown}
-              onExportText={handleExportText}
-              onPrint={handlePrint}
-              onShowToast={showToast}
-              onTextChange={setRawText}
-              onGenerate={handleGenerateWorkspace}
-              isGenerating={isGenerating}
-            />
+            isWorkspaceReady ? (
+              <FocusedViews
+                activeView={activeView}
+                workspace={workspace}
+                currentPersona={currentPersona}
+                onPersonaChange={handlePersonaChange}
+                activeRecall={activeRecall}
+                onToggleActiveRecall={() => setActiveRecall(!activeRecall)}
+                complexityLevel={complexityLevel}
+                onComplexityChange={setComplexityLevel}
+                onToggleScheduleItem={handleToggleScheduleItem}
+                difficulty={difficulty}
+                onExportMarkdown={handleExportMarkdown}
+                onExportText={handleExportText}
+                onPrint={handlePrint}
+                onShowToast={showToast}
+                onTextChange={setRawText}
+                onGenerate={handleGenerateWorkspace}
+                isGenerating={isGenerating}
+              />
+            ) : (
+              <div className="max-w-2xl mx-auto p-12 text-center comic-card bg-[var(--card-bg)] mt-8">
+                <div className="text-4xl mb-3">📑</div>
+                <h3 className="text-xl font-black mb-2">Study Material Not Yet Initialized</h3>
+                <p className="text-xs text-[var(--text-muted)] font-bold mb-5">
+                  Please return to the Dashboard and upload a lecture PDF or paste notes to generate this interactive study view.
+                </p>
+                <button
+                  onClick={() => setActiveView('dashboard')}
+                  className="btn-comic btn-comic-primary text-xs"
+                >
+                  Return to Dashboard
+                </button>
+              </div>
+            )
           )}
         </div>
       </div>

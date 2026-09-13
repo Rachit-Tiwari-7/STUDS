@@ -1,0 +1,180 @@
+\documentclass[11pt,a4paper]{article}
+
+% --- Essential Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{microtype}
+
+% --- Custom Colors ---
+\definecolor{biogreen}{RGB}{16, 185, 129}
+\definecolor{darkslate}{RGB}{15, 23, 42}
+\definecolor{lightgray}{RGB}{248, 250, 252}
+\definecolor{primaryblue}{RGB}{37, 99, 235}
+
+% --- Page Header & Footer ---
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textbf{BIO 204: Cellular Bioenergetics \& Molecular Physiology}}
+\rhead{\textbf{Lecture Notes: Respiration \& ATP Synthesis}}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.8pt}
+
+% --- TColorBox Styling ---
+\tcbuselibrary{skins,breakable}
+\tcbset{
+    boxrule=1pt,
+    colback=lightgray,
+    colframe=darkslate,
+    arc=3mm,
+    fonttitle=\bfseries\color{white},
+    coltitle=white,
+    colbacktitle=darkslate,
+    boxsep=4pt,
+    left=10pt, right=10pt, top=8pt, bottom=8pt
+}
+
+\newtcolorbox{biobox}[1]{
+    colbacktitle=biogreen,
+    colframe=biogreen,
+    title={#1}
+}
+
+\newtcolorbox{mnemonicbox}{
+    colbacktitle=darkslate,
+    colframe=darkslate,
+    title={High-Yield Mnemonic}
+}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primaryblue,
+    urlcolor=primaryblue
+}
+
+\begin{document}
+
+% --- Document Title Banner ---
+\begin{center}
+    {\Huge \textbf{Cellular Respiration, Glycolysis \& ATP Synthesis}}\\[6pt]
+    {\large \textbf{Academic Lecture Notes \& Study Companion}}\\[4pt]
+    \textit{Department of Biological Sciences $\bullet$ Biochemistry \& Cell Biology Division}
+    \vspace{8pt}
+    \hrule height 1.5pt
+    \vspace{12pt}
+\end{center}
+
+% --- High-Level Takeaways ---
+\begin{tcolorbox}[title=Core Conceptual Takeaways]
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt]
+    \item \textbf{Universal Energy Currency:} Cellular respiration oxidizes glucose to generate Adenosine Triphosphate (ATP) to drive thermodynamically unfavorable biochemical reactions.
+    \item \textbf{Three-Stage Pathway:} Glycolysis (Cytoplasm) $\rightarrow$ Krebs Cycle (Mitochondrial Matrix) $\rightarrow$ Oxidative Phosphorylation \& ETC (Inner Mitochondrial Membrane).
+    \item \textbf{Chemiosmotic Coupling:} High-energy electrons from NADH and $\text{FADH}_2$ establish a transmembrane proton gradient (proton motive force) that drives ATP Synthase rotation.
+\end{itemize}
+\end{tcolorbox}
+
+\vspace{10pt}
+
+% --- Section 1 ---
+\section{Cellular Respiration and Bioenergetics}
+
+Cellular respiration is the foundational catabolic process by which aerobic organisms extract stored potential chemical energy from covalent bonds in glucose molecules.
+
+\begin{equation*}
+    \text{C}_6\text{H}_{12}\text{O}_6 + 6\text{O}_2 \longrightarrow 6\text{CO}_2 + 6\text{H}_2\text{O} + 30\text{--}32\,\text{ATP}
+\end{equation*}
+
+\begin{mnemonicbox}
+\textbf{O-I-L $\bullet$ R-I-G:} \textbf{O}xidation \textbf{I}s \textbf{L}oss of electrons; \textbf{R}eduction \textbf{I}s \textbf{G}ain of electrons.
+\end{mnemonicbox}
+
+\vspace{10pt}
+
+% --- Section 2 ---
+\section{Stage 1: Glycolysis (Cytoplasmic Sugar Splitting)}
+
+\begin{biobox}{Glycolysis Characteristics}
+\begin{itemize}[leftmargin=1.5em, itemsep=3pt]
+    \item \textbf{Subcellular Location:} Cell Cytoplasm (Cytosol).
+    \item \textbf{Oxygen Dependency:} Anaerobic (requires zero oxygen).
+    \item \textbf{Substrate:} 1 molecule of 6-carbon Glucose ($\text{C}_6\text{H}_{12}\text{O}_6$).
+    \item \textbf{End Products:} 2 molecules of 3-carbon Pyruvate, 2 Net ATP (via substrate-level phosphorylation), and 2 NADH.
+\end{itemize}
+\end{biobox}
+
+The pathway operates in two functional phases: the \textit{Energy Investment Phase} (consumes 2 ATP to phosphorylate intermediates) and the \textit{Energy Payoff Phase} (generates 4 ATP and 2 NADH), netting \textbf{+2 ATP}.
+
+\vspace{10pt}
+
+% --- Section 3 ---
+\section{Stage 2: The Krebs Cycle (Citric Acid Cycle)}
+
+Pyruvate is translocated into the \textbf{mitochondrial matrix} via the pyruvate translocase transporter, where the enzyme \textit{pyruvate dehydrogenase} decarboxylates it into \textbf{Acetyl-CoA}, releasing $\text{CO}_2$ and yielding 1 NADH per pyruvate.
+
+\subsection{Cycle Dynamics in the Mitochondrial Matrix}
+Acetyl-CoA (2C) combines with oxaloacetate (4C) to synthesize citrate (6C). Through sequential oxidation-reduction steps:
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt]
+    \item 2 carbons are fully oxidized and discharged as waste $\text{CO}_2$.
+    \item Per glucose (2 turns of the cycle): yields \textbf{6 NADH}, \textbf{2 $\text{FADH}_2$}, and \textbf{2 ATP} (or GTP).
+\end{itemize}
+
+\vspace{10pt}
+
+% --- Section 4 ---
+\section{Stage 3: Oxidative Phosphorylation \& The Electron Transport Chain (ETC)}
+
+Located along the folded cristae of the \textbf{inner mitochondrial membrane}, multi-protein complexes I through IV extract electrons from electron shuttles:
+\begin{enumerate}[leftmargin=1.5em, itemsep=3pt]
+    \item \textbf{Complex I (NADH Dehydrogenase):} Accepts electrons from NADH, pumping $\text{H}^+$ protons from matrix to intermembrane space.
+    \item \textbf{Complex II (Succinate Dehydrogenase):} Accepts electrons from $\text{FADH}_2$ (does not pump protons).
+    \item \textbf{Complex III (Cytochrome $bc_1$):} Shuttles electrons through cytochrome $c$, pumping protons.
+    \item \textbf{Complex IV (Cytochrome $c$ Oxidase):} Transfers electrons to molecular oxygen ($\text{O}_2$), the \textbf{terminal electron acceptor}, reducing it to form metabolic water ($\text{H}_2\text{O}$).
+\end{enumerate}
+
+\vspace{10pt}
+
+% --- Section 5 ---
+\section{Chemiosmosis and ATP Synthase}
+
+The active pumping of protons creates a steep electrochemical gradient across the inner mitochondrial membrane, termed the \textbf{Proton Motive Force (PMF)}.
+
+\begin{biobox}{ATP Synthase Catalytic Turbine}
+Protons cannot diffuse through the lipid bilayer and instead flow down their gradient back into the matrix exclusively through the $F_0$ rotor channel of \textbf{ATP Synthase}. This proton flux induces conformational rotation of the $F_1$ catalytic subunit, phosphorylating ADP and inorganic phosphate ($\text{P}_i$) into ATP:
+\begin{equation*}
+    \text{ADP} + \text{P}_i + \text{H}^+_{\text{intermembrane}} \xrightarrow{\text{ATP Synthase}} \text{ATP} + \text{H}_2\text{O}
+\end{equation*}
+This chemiosmotic mechanism yields approximately \textbf{26 to 28 ATP}, accounting for over 90\% of total cellular ATP.
+\end{biobox}
+
+\begin{mnemonicbox}
+\textbf{G-K-E:} Stages of Respiration: \textbf{G}lycolysis (Cytoplasm) $\rightarrow$ \textbf{K}rebs (Matrix) $\rightarrow$ \textbf{E}TC (Inner Membrane).
+\end{mnemonicbox}
+
+\vspace{12pt}
+\begin{center}
+\small
+\begin{tabular}{@{}llcc@{}}
+\toprule
+\textbf{Stage} & \textbf{Subcellular Location} & \textbf{ATP Yield} & \textbf{Electron Shuttles} \\ \midrule
+Glycolysis & Cytoplasm (Cytosol) & 2 ATP (net) & 2 NADH \\
+Pyruvate Oxidation & Mitochondrial Matrix & 0 ATP & 2 NADH \\
+Krebs Cycle & Mitochondrial Matrix & 2 ATP & 6 NADH, 2 $\text{FADH}_2$ \\
+Oxidative Phosphorylation & Inner Mitochondrial Membrane & $\approx$ 26--28 ATP & All carriers oxidized \\ \midrule
+\textbf{Total Aerobic Net Yield} & & \textbf{30--32 ATP} & \\ \bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{14pt}
+\hrule height 0.8pt
+\vspace{8pt}
+\begin{center}
+    \small \textit{Document generated for STUDS Academic Workspace $\bullet$ Typeset with \LaTeX}
+\end{center}
+
+\end{document}

@@ -32,6 +32,7 @@ interface SidebarProps {
   streak: number;
   isDark: boolean;
   onToggleTheme: () => void;
+  isWorkspaceReady?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -45,8 +46,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   streak,
   isDark,
   onToggleTheme,
+  isWorkspaceReady = false,
 }) => {
-  const scheduleDone = workspace.schedule?.filter((s) => s.done).length || 0;
+  const scheduleDone = isWorkspaceReady
+    ? workspace.schedule?.filter((s) => s.done).length || 0
+    : 0;
 
   const navCategories = [
     {
@@ -80,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           short: 'Notes',
           icon: BookOpen,
           symbol: '📝',
-          badge: `${workspace.sections?.length || 3} parts`,
+          badge: isWorkspaceReady ? `${workspace.sections?.length || 0} parts` : null,
         },
         {
           id: 'glossary' as ActiveViewType,
@@ -88,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           short: 'Glossary',
           icon: BookMarked,
           symbol: '📖',
-          badge: `${workspace.glossary?.length || 6}`,
+          badge: isWorkspaceReady ? `${workspace.glossary?.length || 0}` : null,
         },
         {
           id: 'mindmap' as ActiveViewType,
@@ -109,7 +113,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           short: 'Quiz',
           icon: HelpCircle,
           symbol: '❓',
-          badge: `${workspace.quiz?.length || 5} Qs`,
+          badge: isWorkspaceReady ? `${workspace.quiz?.length || 0} Qs` : null,
           badgeColor: 'bg-amber-200 text-amber-900 border-amber-500',
         },
         {
@@ -118,7 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           short: 'Flashcards',
           icon: Layers,
           symbol: '🃏',
-          badge: `${workspace.flashcards?.length || 5} cards`,
+          badge: isWorkspaceReady ? `${workspace.flashcards?.length || 0} cards` : null,
         },
         {
           id: 'cloze' as ActiveViewType,

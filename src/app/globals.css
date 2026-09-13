@@ -240,13 +240,20 @@ body {
   text-decoration: underline;
 }
 
-/* 3D Flashcard flip */
+/* 3D Flashcard flip engines (Full Deck & Rail Card) */
+.flashcard-scene,
 .flashcard-wrapper {
-  perspective: 1000px;
+  perspective: 1200px;
   width: 100%;
+  position: relative;
+}
+
+.flashcard-wrapper {
   height: 220px;
   margin-top: 12px;
 }
+
+.flashcard-card,
 .flashcard-inner {
   position: relative;
   width: 100%;
@@ -256,11 +263,31 @@ body {
   transform-style: preserve-3d;
   cursor: pointer;
 }
+
+.flashcard-card.is-flipped,
 .flashcard-inner.is-flipped {
   transform: rotateY(180deg);
 }
-.flashcard-front, .flashcard-back {
+
+.flashcard-face {
   position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  box-sizing: border-box;
+}
+
+.flashcard-face.flashcard-back {
+  transform: rotateY(180deg);
+}
+
+/* Sidebar rail card specific face defaults */
+.flashcard-inner .flashcard-front,
+.flashcard-inner .flashcard-back {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   -webkit-backface-visibility: hidden;
@@ -273,12 +300,15 @@ body {
   align-items: center;
   justify-content: center;
   padding: 20px;
+  box-sizing: border-box;
 }
-.flashcard-front {
+
+.flashcard-inner .flashcard-front {
   background-color: var(--card-bg);
   color: var(--text-main);
 }
-.flashcard-back {
+
+.flashcard-inner .flashcard-back {
   background-color: var(--brand-yellow);
   color: #111827;
   transform: rotateY(180deg);

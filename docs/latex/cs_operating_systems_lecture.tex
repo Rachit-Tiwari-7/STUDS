@@ -1,0 +1,174 @@
+\documentclass[11pt,a4paper]{article}
+
+% --- Essential Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{microtype}
+
+% --- Custom Colors ---
+\definecolor{primaryblue}{RGB}{37, 99, 235}
+\definecolor{darkslate}{RGB}{15, 23, 42}
+\definecolor{accentyellow}{RGB}{234, 179, 8}
+\definecolor{lightgray}{RGB}{248, 250, 252}
+\definecolor{bordergray}{RGB}{226, 232, 240}
+
+% --- Page Header & Footer ---
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textbf{CS 301: Systems Programming \& Operating Systems}}
+\rhead{\textbf{Lecture Notes: Concurrency \& Deadlocks}}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.8pt}
+
+% --- TColorBox Styling ---
+\tcbuselibrary{skins,breakable}
+\tcbset{
+    boxrule=1pt,
+    colback=lightgray,
+    colframe=darkslate,
+    arc=3mm,
+    fonttitle=\bfseries\color{white},
+    coltitle=white,
+    colbacktitle=darkslate,
+    boxsep=4pt,
+    left=10pt, right=10pt, top=8pt, bottom=8pt
+}
+
+\newtcolorbox{definitionbox}[1]{
+    colbacktitle=primaryblue,
+    colframe=primaryblue,
+    title={#1}
+}
+
+\newtcolorbox{mnemonicbox}{
+    colbacktitle=darkslate,
+    colframe=darkslate,
+    title={High-Yield Mnemonic}
+}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primaryblue,
+    urlcolor=primaryblue
+}
+
+\begin{document}
+
+% --- Document Title Banner ---
+\begin{center}
+    {\Huge \textbf{Operating Systems: Concurrency, Synchronization \& Deadlocks}}\\[6pt]
+    {\large \textbf{Academic Lecture Notes \& Study Companion}}\\[4pt]
+    \textit{Department of Computer Science $\bullet$ Systems \& Networking Division}
+    \vspace{8pt}
+    \hrule height 1.5pt
+    \vspace{12pt}
+\end{center}
+
+% --- High-Level Takeaways ---
+\begin{tcolorbox}[title=Core Conceptual Takeaways]
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt]
+    \item \textbf{Isolation vs. Sharing:} Processes run in dedicated, hardware-isolated virtual address spaces with distinct page tables; threads share virtual memory, code segment, and heap inside a single enclosing process.
+    \item \textbf{Mutual Exclusion Requirement:} Unsynchronized concurrent access to shared mutable data introduces non-deterministic race conditions. Critical sections must be executed atomically.
+    \item \textbf{The Deadlock Theorem:} A deadlock can only occur if and only if all \textbf{four Coffman conditions} (Mutual Exclusion, Hold and Wait, No Preemption, Circular Wait) hold simultaneously.
+\end{itemize}
+\end{tcolorbox}
+
+\vspace{10pt}
+
+% --- Section 1 ---
+\section{Process Isolation vs. Thread Concurrency}
+
+Modern computing systems rely on concurrency to execute multiple units of computation simultaneously or via interleaved timeslices.
+
+\begin{definitionbox}{Process vs. Thread Architecture}
+\begin{description}[leftmargin=1.5em, itemsep=4pt]
+    \item[\textbf{Process:}] An independent, executing instance of a program. It possesses its own isolated virtual address space, file descriptor table, register state, user credentials, and memory mappings managed by the OS page tables. Context switching between distinct processes requires invalidating or updating translation lookaside buffer (TLB) entries.
+    \item[\textbf{Thread:}] The smallest schedulable unit of CPU execution inside a process (often called a \textit{lightweight process}). All peer threads within a process share the exact same virtual memory space, global data segment, and dynamic heap, but each maintains its own private stack and hardware program counter (PC).
+\end{description}
+\end{definitionbox}
+
+\begin{mnemonicbox}
+\textbf{P-T-A-H:} \textbf{P}rocesses own isolated \textbf{A}ddress spaces; \textbf{T}hreads share \textbf{H}eap \& handles.
+\end{mnemonicbox}
+
+\vspace{10pt}
+
+% --- Section 2 ---
+\section{Race Conditions \& The Critical Section Problem}
+
+When multiple execution threads read and write shared data without synchronization, the final outcome depends on thread scheduling order, causing a \textbf{Race Condition}.
+
+\subsection{Properties of a Correct Solution}
+Any valid critical section synchronization mechanism must fulfill three fundamental requirements:
+\begin{enumerate}[leftmargin=1.5em, itemsep=2pt]
+    \item \textbf{Mutual Exclusion:} If thread $T_i$ is executing in its critical section, no other thread may enter the critical section.
+    \item \textbf{Progress:} If no thread is in its critical section and threads wish to enter, selection cannot be postponed indefinitely.
+    \item \textbf{Bounded Waiting:} There must exist a bound on the number of times other threads can enter their critical sections after a thread has made a request.
+\end{enumerate}
+
+\vspace{10pt}
+
+% --- Section 3 ---
+\section{Synchronization Primitives}
+
+Operating systems and hardware architectures provide several primitives to enforce atomic coordination:
+
+\begin{itemize}[leftmargin=1.5em, itemsep=5pt]
+    \item \textbf{Mutex (Mutual Exclusion Lock):} A binary synchronization tool featuring \textit{ownership semantics}. Only the exact thread that acquired the mutex is permitted to release it.
+    \item \textbf{Semaphore:} A signaling variable introduced by Edsger Dijkstra. A semaphore $S$ is initialized to an integer counter and accessed through two atomic primitives:
+    \begin{align*}
+        \text{wait}(S) \text{ / } P(S): & \quad \text{while } S \le 0 \text{ do wait; } S \leftarrow S - 1 \\
+        \text{signal}(S) \text{ / } V(S): & \quad S \leftarrow S + 1
+    \end{align*}
+    Unlike mutexes, semaphores have no thread ownership and can signal between producer and consumer threads.
+    \item \textbf{Spinlock:} A locking primitive where threads waiting for the lock poll continuously in a CPU loop (\textit{busy-waiting}). While efficient for very short wait times on multi-core systems, spinlocks waste CPU cycles on single-core uniprocessors.
+\end{itemize}
+
+\vspace{10pt}
+
+% --- Section 4 ---
+\section{The Deadlock Dilemma \& The 4 Coffman Conditions}
+
+A \textbf{Deadlock} is a permanent systemic impasse where every process in a set is blocked waiting for an event that only another blocked process in the set can cause.
+
+\begin{tcolorbox}[title=The 4 Necessary Coffman Conditions]
+All four conditions must hold simultaneously for a deadlock to arise:
+\begin{enumerate}[leftmargin=1.5em, itemsep=3pt]
+    \item \textbf{Mutual Exclusion:} At least one resource must be held in a non-shareable mode.
+    \item \textbf{Hold and Wait:} A process must be holding at least one resource and simultaneously waiting to acquire additional resources held by other processes.
+    \item \textbf{No Preemption:} Resources cannot be forcibly confiscated from a process; they can only be released voluntarily by the holding process upon task completion.
+    \item \textbf{Circular Wait:} A closed chain of processes $\{P_0, P_1, \dots, P_n\}$ exists such that $P_0$ waits for a resource held by $P_1$, and $P_n$ waits for a resource held by $P_0$.
+\end{enumerate}
+\end{tcolorbox}
+
+\begin{mnemonicbox}
+\textbf{M-H-N-C:} \textbf{M}utual Exclusion, \textbf{H}old and Wait, \textbf{N}o Preemption, \textbf{C}ircular Wait.
+\end{mnemonicbox}
+
+\vspace{10pt}
+
+% --- Section 5 ---
+\section{Deadlock Prevention \& Dijkstra's Banker's Algorithm}
+
+System designers employ two distinct mathematical strategies to eliminate deadlocks:
+
+\begin{description}[leftmargin=1.5em, itemsep=4pt]
+    \item[\textbf{Deadlock Prevention:}] Restricts resource requests such that at least one of the four Coffman conditions can never hold. Enforcing a \textbf{strict total ordering} on all resource acquisitions permanently breaks the Circular Wait condition.
+    \item[\textbf{Deadlock Avoidance (Banker's Algorithm):}] Allows dynamic resource requests but evaluates current allocation vectors against maximum claim matrices before granting an allocation. A request is granted if and only if the system transitions into a guaranteed \textbf{Safe State} (a state from which there exists an execution sequence allowing every process to finish without deadlocking).
+\end{description}
+
+\vspace{14pt}
+\hrule height 0.8pt
+\vspace{8pt}
+\begin{center}
+    \small \textit{Document generated for STUDS Academic Workspace $\bullet$ Typeset with \LaTeX}
+\end{center}
+
+\end{document}

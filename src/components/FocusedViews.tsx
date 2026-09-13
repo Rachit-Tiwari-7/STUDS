@@ -395,11 +395,11 @@ export const FocusedViews: React.FC<FocusedViewsProps> = ({
         {/* Big 3D Flippable Card Arena */}
         <div
           onClick={() => setIsFlipped(!isFlipped)}
-          className="flashcard-scene h-72 sm:h-80 cursor-pointer select-none"
+          className="flashcard-scene relative w-full h-80 sm:h-96 min-h-[320px] cursor-pointer select-none"
         >
-          <div className={`flashcard-card ${isFlipped ? 'is-flipped' : ''}`}>
+          <div className={`flashcard-card relative w-full h-full ${isFlipped ? 'is-flipped' : ''}`}>
             {/* Front */}
-            <div className="flashcard-face flashcard-front flex flex-col justify-between p-8 bg-[var(--card-bg)] border-[var(--border-thick)] rounded-[var(--radius-lg)] shadow-[var(--shadow-xl)]">
+            <div className="flashcard-face flashcard-front absolute inset-0 w-full h-full flex flex-col justify-between p-6 sm:p-8 bg-[var(--card-bg)] border-[var(--border-thick)] rounded-[var(--radius-lg)] shadow-[var(--shadow-xl)] overflow-hidden">
               <div className="flex justify-between items-center">
                 <span className="badge-pill badge-pill-blue text-xs font-black">CONCEPT QUESTION</span>
                 <span className="text-xs font-black text-[var(--text-muted)]">
@@ -407,8 +407,10 @@ export const FocusedViews: React.FC<FocusedViewsProps> = ({
                 </span>
               </div>
 
-              <div className="my-auto text-center">
-                <h3 className="text-xl sm:text-2xl font-black leading-snug">{currentCard.front}</h3>
+              <div className="my-auto text-center px-4">
+                <h3 className="text-xl sm:text-3xl font-black leading-snug text-[var(--text-main)]">
+                  {currentCard.front}
+                </h3>
               </div>
 
               <div className="text-center text-xs font-black text-[var(--text-muted)]">
@@ -417,7 +419,7 @@ export const FocusedViews: React.FC<FocusedViewsProps> = ({
             </div>
 
             {/* Back */}
-            <div className="flashcard-face flashcard-back flex flex-col justify-between p-8 bg-[var(--brand-yellow-light)] border-[var(--border-thick)] rounded-[var(--radius-lg)] shadow-[var(--shadow-xl)]">
+            <div className="flashcard-face flashcard-back absolute inset-0 w-full h-full flex flex-col justify-between p-6 sm:p-8 bg-[var(--brand-yellow-light)] dark:bg-[#1a2333] border-[var(--border-thick)] rounded-[var(--radius-lg)] shadow-[var(--shadow-xl)] overflow-hidden">
               <div className="flex justify-between items-center">
                 <span className="badge-pill badge-pill-yellow text-xs font-black">EXPLANATION / ANSWER</span>
                 <span className="text-xs font-black text-[var(--text-muted)]">
@@ -425,13 +427,13 @@ export const FocusedViews: React.FC<FocusedViewsProps> = ({
                 </span>
               </div>
 
-              <div className="my-auto text-center">
-                <p className="text-base sm:text-lg font-bold text-[#111827] leading-relaxed">
+              <div className="my-auto text-center px-4">
+                <p className="text-base sm:text-xl font-bold text-amber-950 dark:text-amber-100 leading-relaxed">
                   {currentCard.back}
                 </p>
               </div>
 
-              <div className="text-center text-xs font-black text-[var(--brand-blue)]">
+              <div className="text-center text-xs font-black text-[var(--brand-blue)] dark:text-amber-400">
                 ✅ Flip again to review question
               </div>
             </div>
